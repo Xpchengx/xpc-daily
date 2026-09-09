@@ -1,0 +1,19 @@
+{
+  "name": "Xpc每日任务",
+  "short_name": "Xpc",
+  "description": "移动办公用的个人工作台：待办、优先级、跨天顺延、年度目标",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#141b23",
+  "theme_color": "#1a222c",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

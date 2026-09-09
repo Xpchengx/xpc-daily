@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  Xpc每日任务                                                  ║
+  ║  由 不一书个人工作台生成器 (bys-personal-dashboard) 生成       ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  改这个文件时请遵守：                                          ║
+  ║  1. 每个功能必须被分区标记包裹，且 START 和 END 的功能名        ║
+  ║     必须一字不差（HTML 和 JS 两处都要）                        ║
+  ║  2. 数据读写只走 Store.*，不要直接碰 localStorage             ║
+  ║  3. 输入框 font-size 不能小于 16px                            ║
+  ║  4. 敏感数据（token）走 Store.setSecret，不进备份              ║
+  ║  5. 同步后端是 GitHub 私有 Gist，不是边缘函数                  ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Xpc每日任务</title>
+
+<!-- PWA：这四行决定了"添加到主屏幕"之后是不是全屏、图标好不好看 -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Xpc">
+<meta name="theme-color" content="#1a222c">
+
+<style>
+/* ==== 主题变量：护眼提亮版（暗色调优，降低光晕 + 提高次要文字亮度） ==== */
+:root{
+  --bg:#141b23;
+  --sidebar:#1a222c;
+  --sidebar-text:#aab5c1;
+  --sidebar-active:#2d4f7c;
+  --card:#1a222c;
+  --text:#d7dfe8;
+  --text-dim:#93a1b1;
+  --accent:#58a6ff;
+  --radius:12px;
+  --shadow:none;
+  --font:-apple-system,"PingFang SC",system-ui,sans-serif;
+  --line:#273243;          /* 1px 细边框色。现代审美用细线，不用投影 */
+
+  /* 字号阶梯 —— 故意拉开跨度。所有字号都差不多，是业余感最大的来源 */
+  --fs-hero:44px;   /* 英雄元素：每页最大的那一个数字，其余全部退后 */
+  --fs-title:22px;
+  --fs-body:16px;   /* 输入框不得低于 16px，否则 iOS 会自动放大整页 */
+  --fs-meta:13px;
+
+  --pad:20px;       /* 卡片内边距。留白是最便宜的高级感 */
+  --gap:12px;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+  --dur:.18s;
+}
+
+/* ==== 基础 ==== */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:var(--font); background:var(--bg); color:var(--text);
+  font-size:var(--fs-body); line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden; /* 整页不滚，只让内容区滚 —— 避免 iOS 橡皮筋把侧边栏拽走 */
+}
+.app{display:flex;height:100%}
+
+/* ==== 侧边栏：常驻窄条 ==== */
+.side{
+  width:76px;flex-shrink:0;background:var(--sidebar);
+  display:flex;flex-direction:column;
+  padding:calc(12px + env(safe-area-inset-top,0)) 6px calc(12px + env(safe-area-inset-bottom,0));
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+.side::-webkit-scrollbar{display:none}
+.brand{text-align:center;margin-bottom:14px;flex-shrink:0}
+.brand .logo{font-size:26px;line-height:1}
+.brand .name{font-size:11px;color:var(--sidebar-text);opacity:.9;margin-top:4px;line-height:1.3;word-break:break-all}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{
+  border:none;background:transparent;font-family:inherit;
+  padding:10px 2px;border-radius:12px;
+  color:var(--sidebar-text);font-size:11px;line-height:1.3;
+}
+.nav button .ico{display:block;font-size:21px;margin-bottom:3px}
+.nav button.on{background:var(--sidebar-active);color:#fff}
+
+/* ==== 内容区 ==== */
+.main{
+  flex:1;min-width:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(14px + env(safe-area-inset-top,0)) 12px calc(28px + env(safe-area-inset-bottom,0));
+  scroll-behavior:smooth;
+}
+.page{display:none;flex-direction:column;gap:var(--gap)}
+.page.on{display:flex}
+.page-title{font-size:var(--fs-title);font-weight:500;line-height:1.25;letter-spacing:-.01em;margin-bottom:2px}
+.page-sub{font-size:var(--fs-meta);color:var(--text-dim);margin-top:-6px;margin-bottom:2px}
+
+/* ==== 卡片 ==== */
+.card{
+  background:var(--card);border-radius:var(--radius);
+  border:1px solid var(--line);   /* 细线代替投影 */
+  box-shadow:var(--shadow);padding:var(--pad);
+}
+.card h2{font-size:17px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.hint{font-size:var(--fs-meta);color:var(--text-dim);margin-top:8px;line-height:1.65}
+.empty{font-size:var(--fs-meta);color:var(--text-dim);text-align:center;padding:22px 0}
+
+/* 英雄元素：每页最大的那一个。数字一律等宽，对齐后立刻专业 */
+.hero{font-size:var(--fs-hero);font-weight:500;line-height:1.1;letter-spacing:-.01em}
+.num,.hero{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.unit{font-size:var(--fs-meta);color:var(--text-dim);font-weight:400;margin-left:6px}
+
+/* ==== 表单：字号必须 >=16px，否则 iOS 会自动放大整页 ==== */
+input,textarea,select{
+  transition:border-color var(--dur) var(--ease);
+  width:100%;font-size:var(--fs-body);font-family:inherit;color:var(--text);line-height:1.5;
+  padding:11px 13px;border:1px solid var(--line);
+  border-radius:calc(var(--radius) - 6px);background:rgba(255,255,255,.03);
+}
+textarea{min-height:110px;resize:vertical;line-height:1.7}
+input::placeholder,textarea::placeholder{color:var(--text-dim)}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+select{appearance:none;-webkit-appearance:none}
+.btn{
+  padding:11px 18px;font-size:16px;font-family:inherit;white-space:nowrap;
+  border:none;border-radius:calc(var(--radius) - 6px);
+  background:var(--accent);color:#0d1117;font-weight:500;
+}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.danger{background:#8b3a3a;color:#fff}
+.btn:active{opacity:.75}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row .btn{flex-shrink:0}
+
+/* ==== 列表 ==== */
+.item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.item:last-child{border-bottom:none}
+.item .grow{flex:1;min-width:0;font-size:16px;line-height:1.7}
+.item .del{color:var(--text-dim);font-size:16px;background:none;border:none;padding:0 4px;flex-shrink:0}
+.box{
+  width:22px;height:22px;flex-shrink:0;margin-top:3px;cursor:pointer;
+  border:2px solid var(--accent);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:#0d1117;background:transparent;
+}
+.item.done .box{background:var(--accent)}
+.item.done .grow{text-decoration:line-through;color:var(--text-dim)}
+.time{font-size:var(--fs-meta);color:var(--text-dim);flex-shrink:0;width:44px;font-variant-numeric:tabular-nums;padding-top:2px}
+
+/* 标签 */
+.tag{font-size:11px;padding:2px 6px;border-radius:5px;margin-left:6px;white-space:nowrap;font-weight:400}
+.tag.p1{background:rgba(226,75,74,.22);color:#ff9b9b}
+.tag.p2{background:rgba(186,117,23,.24);color:#f0b45f}
+.tag.p3{background:rgba(160,170,185,.16);color:var(--text-dim)}
+.tag.late{background:rgba(226,75,74,.20);color:#ff9b9b}
+.tag.now{background:var(--accent);color:#0d1117}
+.tag.span{background:rgba(160,170,185,.14);color:var(--text-dim)}
+
+/* 进度条 */
+.bar{height:8px;background:rgba(160,170,185,.18);border-radius:4px;overflow:hidden;margin:12px 0 6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.stat{display:flex;justify-content:space-between;font-size:var(--fs-meta);color:var(--text-dim)}
+
+/* 云文档入口 */
+.doc{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.doc:last-child{border-bottom:none}
+.doc a{
+  flex:1;min-width:0;color:var(--text);text-decoration:none;font-size:16px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.doc a:active{opacity:.6}
+.doc .go{color:var(--text-dim);font-size:13px}
+
+/* ==== 提示条 ==== */
+.banner{
+  background:var(--accent);color:#0d1117;padding:11px 14px;
+  border-radius:var(--radius);font-size:var(--fs-meta);line-height:1.5;
+  display:flex;align-items:center;gap:10px;
+}
+.banner button{
+  margin-left:auto;flex-shrink:0;background:rgba(0,0,0,.16);color:#0d1117;
+  border:none;padding:6px 12px;border-radius:8px;font-size:var(--fs-meta);font-family:inherit;
+}
+.banner.warn{background:#8b5a1f;color:#ffe9c7}
+.banner.warn button{background:rgba(0,0,0,.2);color:#ffe9c7}
+.toast{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0));
+  transform:translateX(-50%) translateY(8px);z-index:99;
+  background:rgba(0,0,0,.86);color:#fff;padding:10px 18px;border-radius:20px;
+  font-size:14px;opacity:0;pointer-events:none;
+  transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ════════ 动画：只做「让状态变化可理解」的，不做炫技的 ════════ */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.page.on > *{animation:rise .26s var(--ease) both}
+.page.on > *:nth-child(1){animation-delay:0s}
+.page.on > *:nth-child(2){animation-delay:.03s}
+.page.on > *:nth-child(3){animation-delay:.06s}
+.page.on > *:nth-child(4){animation-delay:.09s}
+.page.on > *:nth-child(n+5){animation-delay:.12s}
+
+.nav button,.btn,.card,.item .box{transition:all var(--dur) var(--ease)}
+.btn:active{opacity:.75;transform:scale(.98)}
+.item.done .box{animation:pop .22s var(--ease)}
+@keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+
+/* 用户在系统里关了动效就一律不放 —— 这不是可选项 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-delay:0s !important;
+    transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
+
+/* ════════ 平板与横屏：侧栏展开成图标配文字 ════════ */
+@media (min-width:700px){
+  :root{--fs-hero:50px;--fs-title:26px;--pad:24px;--gap:16px}
+  .side{width:200px;padding-left:12px;padding-right:12px}
+  .brand{text-align:left;padding:0 8px;margin-bottom:22px}
+  .brand .logo{font-size:30px}
+  .brand .name{font-size:14px;margin-top:6px;word-break:normal}
+  .nav{gap:2px}
+  .nav button{
+    display:flex;align-items:center;gap:12px;text-align:left;
+    padding:12px 14px;font-size:15px;
+  }
+  .nav button .ico{display:inline;font-size:20px;margin:0;width:24px;text-align:center}
+  .main{padding:28px 32px 40px}
+}
+
+/* ════════ 桌面：卡片并排 ════════ */
+@media (min-width:1100px){
+  :root{--fs-hero:56px;--fs-title:30px;--pad:30px;--gap:20px}
+  .side{width:240px}
+  .main{padding:36px 44px 52px}
+  .page.on{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:var(--gap);align-content:start;
+  }
+  .page.on > .page-title,
+  .page.on > .page-sub,
+  .page.on > .banner,
+  .page.on > .card.wide{grid-column:1 / -1}
+}
+
+@media (min-width:1700px){
+  .main > .page.on{max-width:1400px;margin:0 auto}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ==== 侧边栏 START ==== -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">🧽</div>
+      <div class="name">Xpc每日任务</div>
+    </div>
+    <nav class="nav" id="nav">
+      <!-- 由 App.routes 自动渲染 -->
+    </nav>
+  </aside>
+  <!-- ==== 侧边栏 END ==== -->
+
+  <main class="main" id="main">
+
+    <!-- ==== 功能：今日 START ==== -->
+    <section class="page" id="page-today">
+      <div class="page-title">今天</div>
+      <div class="page-sub" id="todaySub"></div>
+      <div id="todayWarn"></div>
+      <div class="card wide">
+        <div class="hero" id="todayHero">0<span class="unit">件还没做</span></div>
+        <p class="hint" id="todayHint"></p>
+      </div>
+      <div class="card wide">
+        <h2>⏰ 待办 · 今天该做的</h2>
+        <div id="todayList"></div>
+      </div>
+      <div class="card wide">
+        <h2>📅 固定行程</h2>
+        <div id="todayPlan"></div>
+      </div>
+    </section>
+    <!-- ==== 功能：今日 END ==== -->
+
+    <!-- ==== 功能：待办 START ==== -->
+    <section class="page" id="page-todo">
+      <div class="page-title">待办</div>
+      <div class="page-sub">挂时间、排优先级，没做完的自动顺延</div>
+      <div class="card wide">
+        <h2>✅ 加一条</h2>
+        <div class="row">
+          <input type="text" id="todoText" placeholder="要做的事，比如：整理客户 A 需求文档">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input type="text" id="todoTime" placeholder="时间 09:00（可留空）" style="max-width:160px">
+          <select id="todoPri" style="max-width:140px">
+            <option value="1">P1 紧急</option>
+            <option value="2" selected>P2 重要</option>
+            <option value="3">P3 有空做</option>
+          </select>
+          <button class="btn" onclick="Todo.add()">添加</button>
+        </div>
+        <p class="hint">没做完的第二天会自动出现在「今天」，并标上拖了几天。做完后会记下这条挂了多久。</p>
+      </div>
+      <div class="card wide">
+        <h2>📋 进行中</h2>
+        <div id="todoOpen"></div>
+      </div>
+      <div class="card wide">
+        <h2>🎉 已完成</h2>
+        <div id="todoDone"></div>
+        <p class="hint" id="todoStat"></p>
+      </div>
+    </section>
+    <!-- ==== 功能：待办 END ==== -->
+
+    <!-- ==== 功能：计划 START ==== -->
+    <section class="page" id="page-plan">
+      <div class="page-title">固定行程</div>
+      <div class="page-sub">每天都要做的，写一次就够</div>
+      <div class="card wide">
+        <h2>➕ 加一项</h2>
+        <div class="row">
+          <input type="text" id="planTime" placeholder="09:00" style="max-width:110px">
+          <input type="text" id="planText" placeholder="部门早会">
+          <button class="btn" onclick="Plan.add()">添加</button>
+        </div>
+        <p class="hint">这些每天自动生成。勾完第二天自动重置，不用手动清。</p>
+      </div>
+      <div class="card wide">
+        <h2>📅 每天要做</h2>
+        <div id="planList"></div>
+      </div>
+    </section>
+    <!-- ==== 功能：计划 END ==== -->
+
+    <!-- ==== 功能：年度 START ==== -->
+    <section class="page" id="page-goal">
+      <div class="page-title">年度目标</div>
+      <div class="page-sub" id="goalSub"></div>
+      <div class="card wide">
+        <div class="hero" id="goalDays">0<span class="unit">天</span></div>
+        <p class="hint">距今年结束</p>
+        <div class="bar"><i id="goalBar" style="width:0%"></i></div>
+        <div class="stat"><span id="goalPct"></span><span id="goalCnt"></span></div>
+      </div>
+      <div class="card wide">
+        <h2>🎯 今年的目标</h2>
+        <div class="row">
+          <input type="text" id="goalText" placeholder="比如：拿下 A 客户">
+          <button class="btn" onclick="Goal.add()">添加</button>
+        </div>
+        <div id="goalList" style="margin-top:12px"></div>
+      </div>
+    </section>
+    <!-- ==== 功能：年度 END ==== -->
+
+    <!-- ==== 功能：日志 START ==== -->
+    <section class="page" id="page-log">
+      <div class="page-title">工作日志</div>
+      <div class="page-sub" id="logSub"></div>
+      <div class="card wide">
+        <h2>📝 <span id="logDate"></span>
+          <button class="btn ghost" id="logSyncMini" style="float:right;font-size:12px;padding:4px 10px;margin:0"
+                  onclick="Settings.toggleLogSync()"></button>
+        </h2>
+        <textarea id="logText" placeholder="今天做了什么、卡在哪、明天先干什么" oninput="Log.later()"></textarea>
+        <p class="hint" id="logHint"></p>
+      </div>
+      <div class="card wide">
+        <h2>📚 往日</h2>
+        <div id="logList"></div>
+      </div>
+    </section>
+    <!-- ==== 功能：日志 END ==== -->
+
+    <!-- ==== 功能：文档 START ==== -->
+    <section class="page" id="page-docs">
+      <div class="page-title">云文档</div>
+      <div class="page-sub">常用文档入口，点一下直达</div>
+      <div class="card wide">
+        <h2>➕ 加一个入口</h2>
+        <div class="row">
+          <input type="text" id="docName" placeholder="名字，比如：项目周报">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <input type="text" id="docUrl" placeholder="链接，以 https:// 开头">
+          <button class="btn" onclick="Docs.add()">添加</button>
+        </div>
+        <p class="hint">把 WPS / 金山文档的分享链接粘进来，以后从这里点开，不用每次翻聊天记录。</p>
+      </div>
+      <div class="card wide">
+        <h2>📌 我的入口</h2>
+        <div id="docList"></div>
+      </div>
+    </section>
+    <!-- ==== 功能：文档 END ==== -->
+
+    <!-- ==== 功能：周复盘 START ==== -->
+    <section class="page" id="page-recap">
+      <div class="page-title">这一周</div>
+      <div class="page-sub">周日晚上看一眼，比任何提醒都管用</div>
+      <div class="card wide">
+        <div id="recapBody"></div>
+        <div class="row" style="margin-top:18px">
+          <button class="btn" onclick="Recap.makeCard()">生成图卡</button>
+        </div>
+        <p class="hint">生成一张能存下来的图，想发就发。图上只有汇总数字，不含你的具体记录内容。</p>
+      </div>
+    </section>
+    <!-- ==== 功能：周复盘 END ==== -->
+
+    <!-- ==== 功能：设置 START ==== -->
+    <section class="page" id="page-settings">
+      <div class="page-title">设置</div>
+
+      <div class="card">
+        <h2>💾 数据备份</h2>
+        <p class="hint" style="margin-top:0;margin-bottom:12px">
+          你的数据主要存在这台设备的浏览器里，不在任何服务器上。<br>
+          换设备、清理浏览器数据前，记得先导出备份。
+        </p>
+        <div class="row">
+          <button class="btn" onclick="Store.exportFile()">导出备份</button>
+          <button class="btn ghost" onclick="document.getElementById('importFile').click()">恢复备份</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="Store.importFile(this)">
+        <p class="hint" id="backupInfo"></p>
+      </div>
+
+      <!-- ==== 云端同步卡片 START ==== -->
+      <div class="card wide" id="gistCard">
+        <h2>🔄 双端同步 <span class="hint" id="gistState" style="margin:0 0 0 auto;font-size:var(--fs-meta)"></span></h2>
+        <div id="gistOff">
+          <p class="hint" style="margin-top:0">
+            数据存在一个<b>私有 Gist</b> 里，只有你的 GitHub 账号能看到，走 GitHub 官方接口，不经第三方服务器。<br>
+            本地那份始终在，<b>断网照样能记</b>。两台设备填同一个 token，会自动找到同一份数据。<br>
+            <b>token 只显示一次，生成时先粘到备忘录。</b>
+          </p>
+          <div style="margin-top:14px">
+            <input type="password" id="gistToken" placeholder="GitHub token（只需勾 gist 权限）" autocomplete="off">
+            <p class="hint">
+              怎么拿：github.com → 右上角头像 → Settings → Developer settings<br>
+              → Personal access tokens → Tokens (classic) → Generate new token<br>
+              → 只勾 <b>gist</b> 一项 → 生成后复制（关掉就看不到了）
+            </p>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn" onclick="Settings.enableGist()">开启同步</button>
+            <button class="btn ghost" onclick="Store.exportFile()">先导出备份</button>
+          </div>
+          <p class="hint">建议先导出一份备份再开。</p>
+        </div>
+        <div id="gistOn" style="display:none">
+          <p class="hint" style="margin-top:0">Gist：<b id="gistWho" class="mono"></b><br>上次同步：<span id="gistTime"></span></p>
+          <div class="row" style="margin-top:14px">
+            <button class="btn" onclick="GistSync.pull(true)">立即同步</button>
+            <button class="btn ghost" onclick="GistSync.copyId()">复制 Gist ID</button>
+            <button class="btn ghost" onclick="GistSync.disable()">关闭同步</button>
+          </div>
+          <p class="hint">
+            只在「打开时」和「切回前台时」拉一次，不会一直轮询。另一台设备改完，这边点「立即同步」就能看到。
+          </p>
+        </div>
+      </div>
+      <!-- ==== 云端同步卡片 END ==== -->
+
+      <!-- ==== 日志同步开关 START ==== -->
+      <div class="card wide" id="logSyncCard">
+        <h2>📝 工作日志同步</h2>
+        <p class="hint" style="margin-top:0">
+          日志默认<b>只留这台设备</b>——它经常夹带不想上云的内容。<br>
+          打开之后，日志会和待办一起存进你的私有 Gist，手机电脑都能看。
+        </p>
+        <div class="row" style="margin-top:14px">
+          <button class="btn" id="logSyncBtn" onclick="Settings.toggleLogSync()"></button>
+          <span class="hint" id="logSyncInfo" style="margin:0"></span>
+        </div>
+        <p class="hint">
+          改这个只影响以后的同步，已经写过的内容一条都不会丢。<br>
+          建议两端设成一样：一端开一端关的话，关的那端推送时会把云端的日志覆盖掉。
+        </p>
+      </div>
+      <!-- ==== 日志同步开关 END ==== -->
+
+      <div class="card">
+        <h2>⚠️ 危险操作</h2>
+        <button class="btn danger" onclick="Store.wipe()">清空所有数据</button>
+        <p class="hint">清空前请确认已经导出过备份，这个操作无法撤销。</p>
+      </div>
+
+      <div class="card">
+        <p class="hint" style="margin:0;text-align:center">
+          Xpc每日任务<br>
+          <span style="opacity:.6">由 不一书个人工作台生成器 生成</span>
+        </p>
+      </div>
+    </section>
+    <!-- ==== 功能：设置 END ==== -->
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   Store · 存储抽象层
+   所有数据读写都必须走这里，不要直接用 localStorage。
+
+   ── 为什么数组型数据要用 list/upsert 而不是 get/set ──
+   Store.set('todo', 整个数组) 是「整包覆盖」。单设备没问题，
+   一旦两台设备各自离线改过，后上传的那份会把另一份的改动无声吞掉：
+
+     手机 10 条 → 加 1 条 = 11 条，上传
+     电脑 10 条 → 加另 1 条 = 11 条，后上传 → 手机加的那条消失
+
+   所以数组型一律用 upsert / softDelete，每条带修改时间，合并时逐条比对。
+   ═══════════════════════════════════════════════════════════ */
+const Store = (() => {
+  const NS  = 'bysdash:';
+  const SEC = 'bysdash$secret:';
+  const TOMB_TTL = 30 * 864e5;   // 墓碑保留 30 天，之后清掉（那时各端早同步过了）
+
+  const driver = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k,v){
+      try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+      catch(e){
+        UI.toast('存储空间满了，请到设置里导出备份后清理旧数据');
+        console.error(e); return false;
+      }
+    },
+    remove(k){ localStorage.removeItem(k); },
+    keys(){ return Object.keys(localStorage); }
+  };
+
+  const now = () => Date.now();
+
+  /** 按 id 逐条合并两个列表：同 id 取修改时间更新的那条 */
+  function mergeList(a, b){
+    const m = new Map();
+    for (const it of [...(a || []), ...(b || [])]) {
+      if (!it || !it.id) continue;
+      const prev = m.get(it.id);
+      if (!prev || (it._u || 0) > (prev._u || 0)) m.set(it.id, it);
+    }
+    return [...m.values()];
+  }
+
+  const S = {
+    /** 日志这个 key 默认不参与云端同步（私人内容）。备份仍然会带上。
+        打开「日志同步」开关后，这里返回空数组，日志就跟待办一起上云。
+        ⚠️ 不要用下划线开头命名这个开关——以 _ 开头的 key 会被 mergeRemote 跳过，
+        那样两端设置会不一致，一端开的同步可能被另一端的推送抹掉。 */
+    get NO_SYNC(){ return this.get('logSync') === '1' ? [] : ['log']; },
+
+    /* ── 单值：配置、开关、计数快照这类 ── */
+    get(key, fallback = null){
+      const v = driver.get(NS + key);
+      return v === null || v === undefined ? fallback : v;
+    },
+    set(key, val){
+      const ok = driver.set(NS + key, val);
+      if (ok) this._touch();
+      return ok;
+    },
+    remove(key){ driver.remove(NS + key); this._touch(); },
+
+    /* ── 数组型：一条一条存，可合并 ── */
+    list(key, sort){
+      const raw = this.get(key, []);
+      if (!Array.isArray(raw)) return [];
+      const cut = now() - TOMB_TTL;
+      const alive = [], keep = [];
+      for (const it of raw) {
+        if (it && it._d) { if ((it._u || 0) > cut) keep.push(it); continue; }
+        if (it) { alive.push(it); keep.push(it); }
+      }
+      if (keep.length !== raw.length) driver.set(NS + key, keep);
+      return sort ? alive.sort(sort) : alive;
+    },
+
+    upsert(key, item){
+      const raw = this.get(key, []);
+      const it = Object.assign({}, item);
+      if (!it.id) it.id = Util.uid();
+      it._u = now();
+      delete it._d;
+      const i = raw.findIndex(x => x && x.id === it.id);
+      if (i >= 0) raw[i] = Object.assign({}, raw[i], it); else raw.push(it);
+      this.set(key, raw);
+      return it;
+    },
+
+    /** 软删除：留一个墓碑，否则另一台设备同步回来会把它复活 */
+    softDelete(key, id){
+      const raw = this.get(key, []);
+      const i = raw.findIndex(x => x && x.id === id);
+      if (i >= 0) raw[i] = { id, _d: 1, _u: now() };
+      else raw.push({ id, _d: 1, _u: now() });
+      this.set(key, raw);
+    },
+
+    incr(key, n = 1){
+      const raw = this.get(key, []);
+      for (let i = 0; i < n; i++) raw.push({ id: Util.uid(), _u: now() });
+      this.set(key, raw);
+      return this.count(key);
+    },
+    decr(key){
+      const alive = this.list(key);
+      if (alive.length) this.softDelete(key, alive[alive.length - 1].id);
+      return this.count(key);
+    },
+    count(key){ return this.list(key).length; },
+
+    /* ── 按天：key 自带日期，两台设备改的是不同 key，天然不冲突 ── */
+    getDaily(key, fallback = null){ return this.get(key + ':' + Util.today(), fallback); },
+    setDaily(key, val){ return this.set(key + ':' + Util.today(), val); },
+    listDaily(key, sort){ return this.list(key + ':' + Util.today(), sort); },
+    upsertDaily(key, item){ return this.upsert(key + ':' + Util.today(), item); },
+    softDeleteDaily(key, id){ return this.softDelete(key + ':' + Util.today(), id); },
+    countDaily(key){ return this.count(key + ':' + Util.today()); },
+
+    /* ── 敏感数据：独立命名空间，不进备份 ── */
+    getSecret(key){ return driver.get(SEC + key); },
+    setSecret(key, val){ return driver.set(SEC + key, val); },
+
+    _stableId(o){
+      const s = JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]]));
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+      return 'm' + (h >>> 0).toString(36);
+    },
+
+    migrate(){
+      if (this.get('_migrated')) return 0;
+      let n = 0;
+      driver.keys().filter(k => k.startsWith(NS)).forEach(k => {
+        const v = driver.get(k);
+        if (!Array.isArray(v) || !v.length) return;
+        let touched = false;
+        const fixed = v.map(it => {
+          if (!it || typeof it !== 'object') return it;
+          const o = Object.assign({}, it);
+          if (!o.id) { o.id = this._stableId(it); touched = true; }
+          if (!o._u) { o._u = 1; touched = true; }
+          return o;
+        });
+        if (touched) { driver.set(k, fixed); n++; }
+      });
+      this.set('_migrated', Date.now());
+      return n;
+    },
+
+    /* ── 供云同步用 ── */
+    _touch(){
+      driver.set(NS + '_lastWrite', now());
+      if (typeof GistSync !== 'undefined' && GistSync.on && GistSync.on()) GistSync.schedule();
+    },
+    mergeList,
+
+    mergeRemote(remote){
+      if (!remote || typeof remote !== 'object') return 0;
+      let changed = 0;
+      for (const [key, rv] of Object.entries(remote)) {
+        if (key.startsWith('_')) continue;
+        const lv = this.get(key, null);
+        if (Array.isArray(rv)) {
+          const merged = mergeList(Array.isArray(lv) ? lv : [], rv);
+          if (JSON.stringify(merged) !== JSON.stringify(lv)) { driver.set(NS + key, merged); changed++; }
+        } else if (lv === null || lv === undefined) {
+          driver.set(NS + key, rv); changed++;
+        }
+      }
+      return changed;
+    },
+
+    /** 整包导出。传 exclude 可跳过某些 key（云端同步会跳过 NO_SYNC） */
+    dump(exclude){
+      const data = {};
+      const skip = exclude || [];
+      driver.keys().filter(k => k.startsWith(NS)).forEach(k => {
+        const key = k.slice(NS.length);
+        if (skip.includes(key.split(':')[0])) return;
+        data[key] = driver.get(k);
+      });
+      return data;
+    },
+
+    /* ── 备份 ── */
+    exportAll(){
+      return { app:'Xpc每日任务', version:2, exportedAt:new Date().toISOString(), data:this.dump() };
+    },
+
+    exportFile(){
+      const blob = new Blob([JSON.stringify(this.exportAll(), null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Xpc备份-' + Util.today() + '.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      this.set('_lastBackup', now());
+      UI.toast('已导出，建议转发到微信文件传输助手存一份');
+      Settings.refreshBackupInfo();
+    },
+
+    importFile(input){
+      const f = input.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed.data) throw new Error('格式不对');
+          if (!confirm('恢复备份会与当前数据合并，确定吗？')) return;
+          const n = this.mergeRemote(parsed.data);
+          Object.entries(parsed.data).forEach(([k,v]) => {
+            if (!Array.isArray(v) && this.get(k, null) === null) driver.set(NS + k, v);
+          });
+          UI.toast('已合并 ' + n + ' 项，正在重新加载');
+          setTimeout(() => location.reload(), 900);
+        } catch(err){ UI.toast('文件读不了，可能不是备份文件'); }
+      };
+      r.readAsText(f);
+      input.value = '';
+    },
+
+    wipe(){
+      if (!confirm('确定清空所有数据？这个操作无法撤销。')) return;
+      if (!confirm('再确认一次：真的要清空吗？')) return;
+      driver.keys().filter(k => k.startsWith(NS)).forEach(k => driver.remove(k));
+      location.reload();
+    }
+  };
+  return S;
+})();
+
+
+/* ═══════════════════════════════════════════════════════════
+   Util · 工具
+   ═══════════════════════════════════════════════════════════ */
+const Util = {
+  today(){
+    const d = new Date();
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  },
+  uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); },
+  dateOf(d){
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  },
+  hm(){
+    const d = new Date();
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  },
+  /** 相差天数（按日期算，不算时分） */
+  days(a, b){
+    const x = new Date(a), y = new Date(b);
+    x.setHours(0,0,0,0); y.setHours(0,0,0,0);
+    return Math.round((y - x) / 864e5);
+  },
+  esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); },
+
+  compressImage(file, maxW = 800, quality = .72){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const cv = document.createElement('canvas');
+        cv.width  = img.width  * scale;
+        cv.height = img.height * scale;
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        resolve(cv.toDataURL('image/jpeg', quality));
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+};
+
+
+/* ═══════════════════════════════════════════════════════════
+   UI · 界面工具
+   ═══════════════════════════════════════════════════════════ */
+const UI = {
+  toast(msg){
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(this._t);
+    this._t = setTimeout(() => t.classList.remove('on'), 2200);
+  },
+  banner(html, pageId){
+    const box = document.createElement('div');
+    box.className = 'banner';
+    box.innerHTML = html;
+    const target = pageId ? document.getElementById(pageId) : document.querySelector('.page.on');
+    if (target) target.prepend(box);
+    return box;
+  }
+};
+
+
+/* ═══════════════════════════════════════════════════════════
+   GistSync · 双端同步（GitHub 私有 Gist 版）
+
+   和骨架自带的边缘函数版不同：这一版不需要任何服务端。
+   GitHub 官方接口返回 Access-Control-Allow-Origin: *，浏览器可以直连，
+   所以工程里没有 edge-functions/，也不绑定任何云平台。
+
+   三条红线和边缘函数版一样，破了会烧额度或者丢数据：
+   1. 本地优先 —— 写入永远先落 localStorage，界面立刻变，云端异步。
+   2. 绝不轮询 —— 只在「打开时 / 切回前台 / 手动点」拉。
+   3. 推送防抖 —— 改动后等 4 秒再推，连续操作合并成一次。
+   ═══════════════════════════════════════════════════════════ */
+const GistSync = {
+  API: 'https://api.github.com',
+  FILE: 'xpc-daily.json',
+  MARK: 'XPC_DAILY_SYNC_v1',      // 靠这个标记在账号里找到属于本工作台的那个 Gist
+  MAX: 900 * 1024,                 // Gist 单文件上限 1MB，留点余量
+  DEBOUNCE: 4000,
+  _timer: null,
+  _busy: false,
+  _last: null,
+
+  cfg(){ return Store.get('_gist', { on:false, id:'' }); },
+  on(){ return !!this.cfg().on; },
+  token(){ return Store.getSecret('gistToken') || ''; },
+
+  async req(method, path, body){
+    const r = await fetch(this.API + path, {
+      method,
+      headers: {
+        'Authorization': 'Bearer ' + this.token(),
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (r.status === 401) throw new Error('token 不对或已过期，去设置里重新填一个');
+      if (r.status === 403) throw new Error('被 GitHub 限流了，等几分钟再试');
+      throw new Error(j.message || ('请求失败 ' + r.status));
+    }
+    return j;
+  },
+
+  /** 在账号里找到本工作台的 Gist。找不到就返回 null */
+  async find(){
+    const list = await this.req('GET', '/gists?per_page=100');
+    const hit = (list || []).find(g => g.description && g.description.indexOf(this.MARK) === 0);
+    return hit || null;
+  },
+
+  /** 读 Gist 里的数据。内容被截断时走 raw_url 再取一次 */
+  async read(id){
+    const g = await this.req('GET', '/gists/' + id);
+    const f = (g.files || {})[this.FILE];
+    if (!f) return {};
+    let txt = f.content;
+    if (f.truncated) txt = await fetch(f.raw_url).then(r => r.text());
+    try { return JSON.parse(txt); } catch { return {}; }
+  },
+
+  async write(id, data){
+    return this.req('PATCH', '/gists/' + id, { files: { [this.FILE]: { content: JSON.stringify(data) } } });
+  },
+
+  async enable(token){
+    token = (token || '').trim();
+    if (token.length < 10) return UI.toast('先把 token 粘进去');
+    Store.setSecret('gistToken', token);
+    this.status('连接中');
+    try {
+      const me = await this.req('GET', '/user');
+      let g = await this.find();
+      if (!g) {
+        g = await this.req('POST', '/gists', {
+          description: this.MARK + ' · Xpc每日任务 数据同步',
+          public: false,
+          files: { [this.FILE]: { content: JSON.stringify(Store.dump(Store.NO_SYNC)) } }
+        });
+      }
+      Store.set('_gist', { on:true, id:g.id });
+      const remote = await this.read(g.id);
+      const n = Store.mergeRemote(remote || {});
+      Store.set('_syncAt', Date.now());
+      UI.toast(n ? ('已连上 @' + me.login + '，合并了 ' + n + ' 处') : ('同步已开启 @' + me.login));
+      setTimeout(() => location.reload(), 900);
+    } catch(e){
+      Store.set('_gist', { on:false, id:'' });
+      Store.setSecret('gistToken', '');
+      this.status('');
+      UI.toast(e.message);
+    }
+  },
+
+  disable(){
+    if (!confirm('关闭同步？本地数据一条不会少，只是不再和云端对齐。')) return;
+    Store.set('_gist', { on:false, id:'' });
+    UI.toast('已关闭同步');
+    Settings.renderGist();
+  },
+
+  copyId(){
+    const id = this.cfg().id;
+    if (!id) return;
+    navigator.clipboard?.writeText(id).then(
+      () => UI.toast('Gist ID 已复制：' + id),
+      () => UI.toast('复制失败，ID 是：' + id)
+    );
+  },
+
+  /** 拉取并合并。失败一律静默降级——本地数据才是主的 */
+  async pull(loud){
+    if (!this.on() || this._busy) return;
+    this._busy = true;
+    this.status('同步中');
+    try {
+      const remote = await this.read(this.cfg().id);
+      const n = Store.mergeRemote(remote || {});
+      Store.set('_syncAt', Date.now());
+      this.status('已同步');
+      if (n) { if (loud) UI.toast('拉到 ' + n + ' 处更新'); App.refresh(); }
+      else if (loud) UI.toast('已是最新');
+    } catch(e){
+      this.status('未同步');
+      if (loud) UI.toast(e.message);
+      else console.warn('同步失败，本地数据不受影响：', e.message);
+    } finally { this._busy = false; }
+  },
+
+  schedule(){
+    if (!this.on()) return;
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => this.push(), this.DEBOUNCE);
+  },
+
+  async push(){
+    if (!this.on() || this._busy) return;
+    const data = Store.dump(Store.NO_SYNC);
+    const s = JSON.stringify(data);
+    if (s === this._last) return;              // 没变化就不推
+    if (s.length > this.MAX) { UI.toast('数据超过 900KB，同步不下去了，先清理一下旧记录'); return; }
+    this._busy = true;
+    this.status('同步中');
+    try {
+      await this.write(this.cfg().id, data);
+      this._last = s;
+      Store.set('_syncAt', Date.now());
+      this.status('已同步');
+    } catch(e){
+      this.status('未同步');
+      console.warn('同步失败，本地数据不受影响：', e.message);
+    } finally { this._busy = false; }
+  },
+
+  status(t){
+    const el = document.getElementById('gistState');
+    if (el) el.textContent = t;
+  },
+
+  init(){
+    if (!this.on()) return;
+    this.pull();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.pull(); });
+    window.addEventListener('online', () => this.schedule());
+  }
+};
+
+
+/* ═══════════════════════════════════════════════════════════
+   Recap · 周复盘（默认功能，别删）
+   ═══════════════════════════════════════════════════════════ */
+const Recap = {
+  collect(){
+    const days = [], now = new Date();
+    const dow = (now.getDay() + 6) % 7;
+    for (let i = 0; i < 7; i++){
+      const d = new Date(now); d.setDate(now.getDate() - dow + i);
+      days.push(Util.dateOf(d));
+    }
+    const doneList = Store.list('todo').filter(t => t.done && t.doneAt);
+    const dayOf = t => Util.dateOf(new Date(t.doneAt));
+    const done = doneList.filter(t => days.includes(dayOf(t))).length;
+    const per = days.map(d => doneList.filter(t => dayOf(t) === d).length);
+    let streak = 0;
+    for (let i = 0; i < 400; i++){
+      const d = new Date(now); d.setDate(now.getDate() - i);
+      if (doneList.some(t => dayOf(t) === Util.dateOf(d))) streak++;
+      else if (i > 0) break;
+    }
+    return { days, done, per, streak, from: days[0], to: days[6] };
+  },
+
+  render(){
+    const r = this.collect();
+    const el = document.getElementById('recapBody');
+    if (!el) return;
+    const cells = r.per.map((n, i) =>
+      `<div style="flex:1;text-align:center">
+         <div style="height:44px;border-radius:10px;background:${n ? 'var(--accent)' : 'var(--line)'};
+              opacity:${n ? Math.min(1, .45 + n * .18) : 1}"></div>
+         <div style="font-size:11px;color:var(--text-dim);margin-top:6px">${'一二三四五六日'[i]}</div>
+       </div>`).join('');
+    el.innerHTML = `
+      <div class="hero">${r.done}<span class="unit">件事做完了</span></div>
+      <p class="hint" style="margin-bottom:18px">${r.from} 到 ${r.to} · 连续有完成 ${r.streak} 天</p>
+      <div style="display:flex;gap:8px">${cells}</div>`;
+  },
+
+  async makeCard(){
+    const r = this.collect();
+    const cs = getComputedStyle(document.documentElement);
+    const v = n => cs.getPropertyValue(n).trim();
+    const W = 1080, H = 1350, cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const g = cv.getContext('2d');
+    const font = (sz, w) => `${w||400} ${sz}px -apple-system,"PingFang SC",system-ui,sans-serif`;
+
+    g.fillStyle = v('--bg') || '#141b23'; g.fillRect(0,0,W,H);
+    g.fillStyle = v('--card') || '#1a222c';
+    const pad = 72, cw = W - pad*2;
+    if (g.roundRect){ g.beginPath(); g.roundRect(pad, 180, cw, 900, 40); g.fill(); }
+    else g.fillRect(pad, 180, cw, 900);
+
+    g.fillStyle = v('--accent') || '#58a6ff';
+    g.font = font(30, 500);
+    g.fillText('这一周', pad + 56, 300);
+
+    g.fillStyle = v('--text') || '#d7dfe8';
+    g.font = font(190, 500);
+    g.fillText(String(r.done), pad + 56, 480);
+    g.font = font(38);
+    g.fillStyle = v('--text-dim') || '#93a1b1';
+    g.fillText('件事做完了', pad + 56 + g.measureText(String(r.done)).width + 210, 480);
+
+    g.font = font(34);
+    g.fillText(`${r.from}  —  ${r.to}`, pad + 56, 560);
+
+    const bw = 96, gap = 24, y = 660;
+    for (let i = 0; i < 7; i++){
+      const n = r.per[i];
+      g.fillStyle = n ? (v('--accent') || '#58a6ff') : (v('--line') || '#273243');
+      g.globalAlpha = n ? Math.min(1, 0.35 + n * 0.18) : 1;
+      const x = pad + 56 + i * (bw + gap);
+      if (g.roundRect){ g.beginPath(); g.roundRect(x, y, bw, bw, 26); g.fill(); }
+      else g.fillRect(x, y, bw, bw);
+      g.globalAlpha = 1;
+      g.fillStyle = v('--text-dim') || '#93a1b1';
+      g.font = font(28);
+      g.fillText('一二三四五六日'[i], x + bw/2 - 14, y + bw + 48);
+    }
+
+    g.fillStyle = v('--text') || '#d7dfe8';
+    g.font = font(46, 500);
+    g.fillText(`连续有完成 ${r.streak} 天`, pad + 56, 900);
+
+    g.fillStyle = v('--text-dim') || '#93a1b1';
+    g.font = font(26);
+    g.fillText('Xpc每日任务', pad + 56, 1010);
+    g.font = font(22);
+    g.fillText('由 不一书个人工作台生成器 生成', pad + 56, 1046);
+
+    cv.toBlob(b => {
+      const url = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = url; a.download = `这一周-${r.to}.png`;
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); UI.toast('图卡已保存到下载目录'); }, 800);
+    }, 'image/png');
+  }
+};
+
+
+/* ═══════════════════════════════════════════════════════════
+   Settings · 设置页
+   ═══════════════════════════════════════════════════════════ */
+const Settings = {
+  render(){
+    this.refreshBackupInfo();
+    this.renderGist();
+    this.renderLogSync();
+  },
+
+  enableGist(){ GistSync.enable(document.getElementById('gistToken').value); },
+
+  /* ── 工作日志要不要跟着上云 ── */
+  logSyncOn(){ return Store.get('logSync') === '1'; },
+
+  toggleLogSync(){
+    const on = !this.logSyncOn();
+    Store.set('logSync', on ? '1' : '0');
+    UI.toast(on ? '工作日志以后会同步到云端' : '工作日志改回只留本地');
+    this.renderLogSync();
+    Log.renderHint();
+    if (GistSync.on()) GistSync.push();   // 立刻推一次，把日志带上/撤下
+  },
+
+  renderLogSync(){
+    const btn = document.getElementById('logSyncBtn');
+    if (!btn) return;
+    const on = this.logSyncOn();
+    btn.textContent = on ? '☁️ 已开启 · 同步到云端' : '📱 仅本地 · 不同步';
+    btn.classList.toggle('ghost', !on);
+    const info = document.getElementById('logSyncInfo');
+    if (info) info.textContent = GistSync.on()
+      ? (on ? '私有 Gist 里也会有一份' : '云端没有日志，只进备份文件')
+      : '还没开双端同步，开了这项才生效';
+  },
+
+  renderGist(){
+    const card = document.getElementById('gistCard');
+    if (!card) return;
+    const on = GistSync.on();
+    document.getElementById('gistOff').style.display = on ? 'none' : 'block';
+    document.getElementById('gistOn').style.display  = on ? 'block' : 'none';
+    if (on) {
+      document.getElementById('gistWho').textContent = GistSync.cfg().id;
+      const t = Store.get('_syncAt');
+      document.getElementById('gistTime').textContent =
+        t ? new Date(t).toLocaleString('zh-CN') : '还没同步过';
+    }
+  },
+
+  refreshBackupInfo(){
+    const last = Store.get('_lastBackup');
+    const el = document.getElementById('backupInfo');
+    if (el) el.textContent = last
+      ? '上次备份：' + new Date(last).toLocaleDateString('zh-CN')
+      : '还没备份过';
+  }
+};
+
+
+/* ═══════════════════════════════════════════════════════════
+   App · 路由与启动
+   ═══════════════════════════════════════════════════════════ */
+const App = {
+  routes: [
+    { id:'today',    icon:'⏰', name:'今天', onShow: () => Today.render() },
+    { id:'todo',     icon:'✅', name:'待办', onShow: () => Todo.render()  },
+    { id:'plan',     icon:'📅', name:'计划', onShow: () => Plan.render()  },
+    { id:'goal',     icon:'🎯', name:'年度', onShow: () => Goal.render()  },
+    { id:'log',      icon:'📝', name:'日志', onShow: () => Log.render()   },
+    { id:'recap',    icon:'📊', name:'复盘', onShow: () => Recap.render() },
+    { id:'docs',     icon:'📌', name:'文档', onShow: () => Docs.render()  },
+    { id:'settings', icon:'⚙️', name:'设置', onShow: () => Settings.render() }
+  ],
+
+  go(id){
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+    document.getElementById('page-' + id)?.classList.add('on');
+    document.querySelectorAll('#nav button').forEach(b =>
+      b.classList.toggle('on', b.dataset.id === id));
+    document.getElementById('main').scrollTop = 0;
+    Store.set('_lastPage', id);
+    this.routes.find(r => r.id === id)?.onShow?.();
+  },
+
+  init(){
+    Store.migrate();
+    document.getElementById('nav').innerHTML = this.routes.map(r =>
+      `<button data-id="${r.id}" onclick="App.go('${r.id}')">
+         <span class="ico">${r.icon}</span>${r.name}
+       </button>`).join('');
+
+    const last = Store.get('_lastPage');
+    this.go(this.routes.some(r => r.id === last) ? last : this.routes[0].id);
+
+    this.checkBackup();
+    GistSync.init();
+  },
+
+  refresh(){
+    const cur = document.querySelector('.page.on');
+    if (!cur) return;
+    const id = cur.id.replace('page-', '');
+    this.routes.find(r => r.id === id)?.onShow?.();
+  },
+
+  checkBackup(){
+    const last = Store.get('_lastBackup');
+    const write = Store.get('_lastWrite');
+    if (!write) return;
+    const days = last ? (Date.now() - last) / 864e5 : 99;
+    if (days < 7) return;
+    UI.banner(
+      `<span>${last ? '已经 ' + Math.floor(days) + ' 天没备份了' : '记得备份一下，数据主要在这台设备上'}</span>
+       <button onclick="App.go('settings')">去备份</button>`);
+  }
+};
+
+
+/* ==== 功能：待办 START ====
+   跨天顺延的做法：不每天改写数据，而是给每条记一个「应完成日 due」，
+   显示时用 today 减 due 算出拖了几天。这样双端合并不会打架，
+   换设备、改系统时间都不会把数据搞乱。 */
+const Todo = {
+  all(){ return Store.list('todo'); },
+  open(){ return Store.list('todo').filter(t => !t.done); },
+
+  /** 今天该做的：due 已到或已过期、且没完成 */
+  dueToday(){
+    const t = Util.today();
+    return this.open().filter(x => !x.due || x.due <= t);
+  },
+
+  /** 拖了几天（没拖就是 0） */
+  late(x){
+    if (!x.due) return 0;
+    const n = Util.days(x.due, new Date());
+    return n > 0 ? n : 0;
+  },
+
+  /** 排序：拖得久的在前 → 优先级 → 时间 → 创建顺序 */
+  cmp(a, b){
+    const la = this.late(a), lb = this.late(b);
+    if (la !== lb) return lb - la;
+    const pa = a.pri || 2, pb = b.pri || 2;
+    if (pa !== pb) return pa - pb;
+    const ta = a.time || '99:99', tb = b.time || '99:99';
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    return (a.createdAt || 0) - (b.createdAt || 0);
+  },
+
+  /** 完成后回看：挂了几天、其中拖了几天 */
+  span(x){
+    if (!x.doneAt || !x.createdAt) return '';
+    const hang = Math.max(0, Util.days(new Date(x.createdAt), new Date(x.doneAt)));
+    let late = 0;
+    if (x.due) late = Math.max(0, Util.days(x.due, new Date(x.doneAt)));
+    return `挂 ${hang} 天` + (late ? ` · 拖 ${late} 天` : '');
+  },
+
+  add(){
+    const el = document.getElementById('todoText');
+    const text = (el.value || '').trim();
+    if (!text) return;
+    const raw = (document.getElementById('todoTime').value || '').trim();
+    const pri = parseInt(document.getElementById('todoPri').value, 10) || 2;
+    Store.upsert('todo', {
+      text,
+      time: /^\d{1,2}:\d{2}$/.test(raw) ? raw : '',
+      pri,
+      createdAt: Date.now(),
+      due: Util.today(),
+      done: false,
+      doneAt: null
+    });
+    el.value = '';
+    document.getElementById('todoTime').value = '';
+    el.focus();
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  toggle(id){
+    const it = this.all().find(x => x.id === id);
+    if (!it) return;
+    const done = !it.done;
+    Store.upsert('todo', { id, done, doneAt: done ? Date.now() : null });
+    if (done) UI.toast('搞定一件');
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  del(id){
+    if (!confirm('删掉这条？')) return;
+    Store.softDelete('todo', id);
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  row(x){
+    const late = this.late(x);
+    const over = !x.done && x.time && x.time <= Util.hm();
+    const pri = x.pri || 2;
+    return `<div class="item ${x.done ? 'done' : ''}">
+      <span class="box" onclick="Todo.toggle('${x.id}')">${x.done ? '✓' : ''}</span>
+      <span class="time">${x.time ? Util.esc(x.time) : ''}</span>
+      <span class="grow">${Util.esc(x.text)}
+        <span class="tag p${pri}">P${pri}</span>
+        ${(late && !x.done) ? `<span class="tag late">已拖 ${late} 天</span>` : ''}
+        ${over ? '<span class="tag now">到点了</span>' : ''}
+        ${x.done ? `<span class="tag span">${Util.esc(this.span(x))}</span>` : ''}
+      </span>
+      <button class="del" onclick="Todo.del('${x.id}')">✕</button>
+    </div>`;
+  },
+
+  render(){
+    const open = this.open().sort((a, b) => this.cmp(a, b));
+    const done = this.all().filter(x => x.done)
+      .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 20);
+
+    document.getElementById('todoOpen').innerHTML = open.length
+      ? open.map(x => this.row(x)).join('')
+      : '<div class="empty">没有进行中的待办</div>';
+
+    document.getElementById('todoDone').innerHTML = done.length
+      ? done.map(x => this.row(x)).join('')
+      : '<div class="empty">还没有完成记录</div>';
+
+    const el = document.getElementById('todoStat');
+    if (el) el.textContent = this.stat();
+  },
+
+  stat(){
+    const all = this.all();
+    if (!all.length) return '';
+    const dn = all.filter(x => x.done);
+    const lates = dn.map(x => x.due && x.doneAt ? Math.max(0, Util.days(x.due, new Date(x.doneAt))) : 0);
+    const avg = lates.length ? lates.reduce((a, b) => a + b, 0) / lates.length : 0;
+    return `共 ${all.length} 条 · 完成 ${dn.length} 条（${Math.round(dn.length / all.length * 100)}%）· 平均拖延 ${avg.toFixed(1)} 天`;
+  }
+};
+/* ==== 功能：待办 END ==== */
+
+
+/* ==== 功能：今日 START ====
+   打开就看到这一页。它的唯一任务是回答「今天还差什么」，
+   所以英雄数字是还没做的件数，其余全部退后。 */
+const Today = {
+  render(){
+    const list = this.dueSorted();
+    const plan = Plan.all();
+    const doneIds = Plan.doneIds();
+    const planLeft = plan.filter(p => !doneIds.includes(p.id)).length;
+    const total = list.length + planLeft;
+
+    const d = new Date();
+    const wk = '日一二三四五六'[d.getDay()];
+    document.getElementById('todaySub').textContent =
+      `${Util.today()} 周${wk} · ${Util.hm()}`;
+
+    document.getElementById('todayHero').innerHTML =
+      `${total}<span class="unit">件还没做</span>`;
+
+    const doneToday = Store.list('todo')
+      .filter(x => x.done && x.doneAt && Util.dateOf(new Date(x.doneAt)) === Util.today()).length;
+    document.getElementById('todayHint').textContent =
+      doneToday ? `今天已经搞定 ${doneToday} 件` : '还没有完成的，先挑一件最要紧的';
+
+    const lateN = list.filter(x => Todo.late(x) > 0).length;
+    const nowN  = list.filter(x => x.time && x.time <= Util.hm()).length;
+    document.getElementById('todayWarn').innerHTML = (lateN || nowN)
+      ? `<div class="banner warn"><span>${lateN
+          ? `${lateN} 件是前几天顺延下来的`
+          : `${nowN} 件已经到点了`}</span>
+         <button onclick="App.go('todo')">去处理</button></div>`
+      : '';
+
+    document.getElementById('todayList').innerHTML = list.length
+      ? list.map(x => Todo.row(x)).join('')
+      : '<div class="empty">今天没有待办，清净</div>';
+
+    document.getElementById('todayPlan').innerHTML = plan.length
+      ? plan.map(p => Plan.row(p, doneIds.includes(p.id))).join('')
+      : '<div class="empty">还没设置固定行程，去「计划」加几项</div>';
+  },
+
+  dueSorted(){
+    return Todo.dueToday().sort((a, b) => Todo.cmp(a, b));
+  }
+};
+/* ==== 功能：今日 END ==== */
+
+
+/* ==== 功能：计划 START ====
+   固定行程：模板长期存，完成状态按天存（Store.listDaily），
+   所以第二天打开自动是未勾选，不用手动清。 */
+const Plan = {
+  all(){ return Store.list('plan', (a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')); },
+  doneIds(){ return Store.listDaily('planDone').map(x => x.id); },
+
+  toggle(id){
+    if (this.doneIds().includes(id)) Store.softDeleteDaily('planDone', id);
+    else Store.upsertDaily('planDone', { id });
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  add(){
+    const tEl = document.getElementById('planTime');
+    const xEl = document.getElementById('planText');
+    const text = (xEl.value || '').trim();
+    if (!text) return;
+    const raw = (tEl.value || '').trim();
+    Store.upsert('plan', { text, time: /^\d{1,2}:\d{2}$/.test(raw) ? raw : '' });
+    tEl.value = ''; xEl.value = '';
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  del(id){
+    if (!confirm('删掉这项固定行程？')) return;
+    Store.softDelete('plan', id);
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  row(p, done){
+    return `<div class="item ${done ? 'done' : ''}">
+      <span class="box" onclick="Plan.toggle('${p.id}')">${done ? '✓' : ''}</span>
+      <span class="time">${p.time ? Util.esc(p.time) : ''}</span>
+      <span class="grow">${Util.esc(p.text)}</span>
+      <button class="del" onclick="Plan.del('${p.id}')">✕</button>
+    </div>`;
+  },
+
+  render(){
+    const all = this.all(), ids = this.doneIds();
+    document.getElementById('planList').innerHTML = all.length
+      ? all.map(p => this.row(p, ids.includes(p.id))).join('')
+      : '<div class="empty">还没有固定行程。早会、日报、周会这类每天都要做的写这儿</div>';
+  }
+};
+/* ==== 功能：计划 END ==== */
+
+
+/* ==== 功能：年度 START ==== */
+const Goal = {
+  all(){ return Store.list('goal', (a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0)); },
+
+  add(){
+    const el = document.getElementById('goalText');
+    const text = (el.value || '').trim();
+    if (!text) return;
+    Store.upsert('goal', { text, done: false, createdAt: Date.now() });
+    el.value = '';
+    this.render();
+  },
+
+  toggle(id){
+    const it = this.all().find(x => x.id === id);
+    if (!it) return;
+    Store.upsert('goal', { id, done: !it.done });
+    this.render();
+  },
+
+  del(id){
+    if (!confirm('删掉这个目标？')) return;
+    Store.softDelete('goal', id);
+    this.render();
+  },
+
+  render(){
+    const now = new Date(), y = now.getFullYear();
+    const start = new Date(y, 0, 1);
+    const end   = new Date(y, 11, 31, 23, 59, 59);
+    const left  = Math.max(0, Math.ceil((end - now) / 864e5));
+    const pct   = Math.min(100, Math.max(0, Math.round((now - start) / (end - start) * 100)));
+
+    document.getElementById('goalDays').innerHTML = `${left}<span class="unit">天</span>`;
+    document.getElementById('goalBar').style.width = pct + '%';
+    document.getElementById('goalPct').textContent = `${y} 年已过 ${pct}%`;
+
+    const all = this.all(), dn = all.filter(x => x.done).length;
+    document.getElementById('goalCnt').textContent =
+      all.length ? `目标完成 ${dn} / ${all.length}` : '还没定目标';
+    document.getElementById('goalSub').textContent = `${y} 年 · 定几件今年一定要做成的事`;
+
+    document.getElementById('goalList').innerHTML = all.length
+      ? all.map(g => `<div class="item ${g.done ? 'done' : ''}">
+          <span class="box" onclick="Goal.toggle('${g.id}')">${g.done ? '✓' : ''}</span>
+          <span class="grow">${Util.esc(g.text)}</span>
+          <button class="del" onclick="Goal.del('${g.id}')">✕</button>
+        </div>`).join('')
+      : '<div class="empty">今年还没有目标</div>';
+  }
+};
+/* ==== 功能：年度 END ==== */
+
+
+/* ==== 功能：日志 START ====
+   默认只留本地，不参与云端同步（见 Store.NO_SYNC）；
+   设置页 / 本页右上角的开关可以打开，打开后日志跟待办一起上云。
+   无论开关怎么设，备份文件始终会带上日志。 */
+const Log = {
+  all(){ return Store.list('log', (a, b) => String(b.date || '').localeCompare(String(a.date || ''))); },
+  today(){ return this.all().find(x => x.date === Util.today()); },
+
+  /** 顶部那行状态说明，开关切换时也要跟着变 */
+  renderHint(){
+    const on = Settings.logSyncOn();
+    const sub = document.getElementById('logSub');
+    const hint = document.getElementById('logHint');
+    const mini = document.getElementById('logSyncMini');
+    if (sub)  sub.textContent  = on ? '会同步到云端，两台设备都能看' : '只存在这台设备，不同步上云';
+    if (mini) mini.textContent = on ? '☁️ 同步中' : '📱 仅本地';
+    if (hint) hint.innerHTML = on
+      ? '边写边存，不用点保存。这些内容<b>会</b>同步到你的私有 Gist —— 别在这里写不想上云的东西。'
+      : '边写边存，不用点保存。这些内容<b>不会</b>同步到云端，只在备份文件里。想两端都看就点右上角开关。';
+  },
+
+  later(){ clearTimeout(this._t); this._t = setTimeout(() => this.save(), 700); },
+
+  save(){
+    const el = document.getElementById('logText');
+    if (!el) return;
+    const cur = this.today();
+    const v = el.value;
+    if (cur) Store.upsert('log', { id: cur.id, date: Util.today(), text: v });
+    else Store.upsert('log', { date: Util.today(), text: v });
+    const d = new Date();
+    document.getElementById('logDate').textContent =
+      Util.today() + ' · 已保存 ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  },
+
+  render(){
+    this.renderHint();
+    document.getElementById('logDate').textContent = Util.today();
+    const cur = this.today();
+    document.getElementById('logText').value = cur ? (cur.text || '') : '';
+
+    const others = this.all().filter(x => x.date !== Util.today()).slice(0, 30);
+    document.getElementById('logList').innerHTML = others.length
+      ? others.map(x => `<div class="item"><span class="grow" style="white-space:pre-wrap">
+          <span style="color:var(--text-dim);font-size:13px">${Util.esc(x.date)}</span><br>${Util.esc(x.text)}
+        </span></div>`).join('')
+      : '<div class="empty">还没有往日记录</div>';
+  }
+};
+/* ==== 功能：日志 END ==== */
+
+
+/* ==== 功能：文档 START ====
+   第二期会在这里接 WPS 个人版接口。第一期先做链接墙：
+   零门槛、永远不会坏，点一下就到。 */
+const Docs = {
+  all(){ return Store.list('docs'); },
+
+  add(){
+    const nEl = document.getElementById('docName');
+    const uEl = document.getElementById('docUrl');
+    const name = (nEl.value || '').trim();
+    const url  = (uEl.value || '').trim();
+    if (!name) return UI.toast('先给它起个名字');
+    if (!/^https?:\/\//i.test(url)) return UI.toast('链接要以 http:// 或 https:// 开头');
+    Store.upsert('docs', { name, url });
+    nEl.value = ''; uEl.value = '';
+    this.render();
+  },
+
+  del(id){
+    if (!confirm('删掉这个入口？')) return;
+    Store.softDelete('docs', id);
+    this.render();
+  },
+
+  render(){
+    const all = this.all();
+    document.getElementById('docList').innerHTML = all.length
+      ? all.map(d => `<div class="doc">
+          <a href="${Util.esc(d.url)}" target="_blank" rel="noopener noreferrer">${Util.esc(d.name)}</a>
+          <span class="go">打开 ›</span>
+          <button class="del" onclick="Docs.del('${d.id}')">✕</button>
+        </div>`).join('')
+      : '<div class="empty">还没有入口。把常用的 WPS / 金山文档链接加进来，以后从这里点开，不用翻聊天记录。</div>';
+  }
+};
+/* ==== 功能：文档 END ==== */
+
+
+App.init();
+</script>
+</body>
+</html>

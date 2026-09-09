@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>风格预览 · Xpc每日任务</title>
+<style>
+/* ============ 三套风格变量（全部暗色方向） ============ */
+/* 第 1 版：原版科技暗色 —— 最深、最酷，对比最强 */
+.theme-a{
+  --bg:#0f1419; --sidebar:#161b22; --sidebar-text:#8b949e; --sidebar-active:#1f6feb;
+  --card:#161b22; --text:#e6edf3; --text-dim:#7d8590; --accent:#1f6feb;
+  --radius:10px; --shadow:0 0 0 1px rgba(255,255,255,.06);
+}
+/* 第 2 版：护眼提亮版 —— 底色提亮、正文降纯白减光晕、次文字提亮、强调色换成暗底更清晰的蓝 */
+.theme-b{
+  --bg:#141b23; --sidebar:#1a222c; --sidebar-text:#aab5c1; --sidebar-active:#2d4f7c;
+  --card:#1a222c; --text:#d7dfe8; --text-dim:#93a1b1; --accent:#58a6ff;
+  --radius:12px; --shadow:0 0 0 1px rgba(255,255,255,.07);
+}
+/* 第 3 版：柔光中性灰 —— 去掉蓝黑，改中性暖灰，长时间看最不容易累 */
+.theme-c{
+  --bg:#191a1c; --sidebar:#212226; --sidebar-text:#a8a49e; --sidebar-active:#3a3d42;
+  --card:#212226; --text:#e2e0dc; --text-dim:#97938d; --accent:#7aa2f7;
+  --radius:14px; --shadow:0 0 0 1px rgba(255,255,255,.05);
+}
+
+/* ============ 结构（三套共用） ============ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,"PingFang SC",system-ui,sans-serif;
+  background:var(--bg); color:var(--text);
+  transition:background .25s, color .25s;
+}
+.switcher{
+  position:sticky; top:0; z-index:10; display:flex; gap:6px;
+  padding:10px 12px calc(10px + env(safe-area-inset-top,0));
+  background:rgba(10,14,18,.88); backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.switcher button{
+  flex:1; padding:9px 4px; font-size:14px; font-family:inherit; cursor:pointer;
+  border:1px solid rgba(255,255,255,.14); border-radius:9px;
+  background:rgba(255,255,255,.05); color:#c9d4e0;
+}
+.switcher button.on{background:#58a6ff;color:#0d1117;border-color:#58a6ff;font-weight:500}
+
+.app{display:flex; min-height:calc(100vh - 56px)}
+
+/* --- 侧边栏：常驻窄条 --- */
+.side{
+  width:76px; flex-shrink:0; background:var(--sidebar);
+  padding:14px 6px calc(14px + env(safe-area-inset-bottom,0));
+  transition:background .25s;
+}
+.side .brand{text-align:center;margin-bottom:14px}
+.side .brand .logo{font-size:26px;line-height:1}
+.side .brand .name{
+  font-size:11px; color:var(--sidebar-text); opacity:.9;
+  margin-top:4px; word-break:break-all; line-height:1.3;
+}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav a{
+  display:block; text-align:center; padding:10px 2px; border-radius:12px;
+  text-decoration:none; color:var(--sidebar-text); font-size:11px; line-height:1.3;
+}
+.nav a .ico{display:block;font-size:21px;margin-bottom:3px}
+.nav a.on{background:var(--sidebar-active);color:#fff}
+
+/* --- 内容区卡片流 --- */
+.main{
+  flex:1; min-width:0; padding:14px 12px calc(24px + env(safe-area-inset-bottom,0));
+  display:flex; flex-direction:column; gap:12px;
+}
+.card{
+  background:var(--card); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:16px; transition:all .25s;
+}
+.card h2{font-size:17px;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.hint{font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.6}
+
+input[type=text]{
+  width:100%; font-size:16px; font-family:inherit; color:var(--text);
+  padding:11px 13px; border:1px solid rgba(255,255,255,.16);
+  border-radius:calc(var(--radius) - 6px); background:rgba(255,255,255,.04);
+}
+input::placeholder{color:var(--text-dim)}
+.btn{
+  padding:11px 18px; font-size:15px; font-family:inherit; cursor:pointer;
+  border:none; border-radius:calc(var(--radius) - 6px);
+  background:var(--accent); color:#0d1117; font-weight:500; flex-shrink:0;
+}
+.row{display:flex;gap:8px;align-items:center}
+
+/* 勾选行 */
+.todo{
+  display:flex;align-items:flex-start;gap:10px;padding:10px 0;cursor:pointer;
+  border-bottom:1px dashed rgba(255,255,255,.10);
+}
+.todo:last-child{border-bottom:none}
+.box{
+  width:21px;height:21px;flex-shrink:0;margin-top:1px;
+  border:2px solid var(--accent);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:#0d1117;
+}
+.todo.done .box{background:var(--accent)}
+.todo.done .txt{text-decoration:line-through;color:var(--text-dim)}
+.time{font-size:13px;color:var(--text-dim);flex-shrink:0;width:42px;font-variant-numeric:tabular-nums}
+.txt{font-size:14px;line-height:1.55;flex:1}
+
+/* 优先级标签 */
+.pri{font-size:11px;padding:2px 6px;border-radius:5px;flex-shrink:0;margin-left:6px}
+.pri.p1{background:rgba(226,75,74,.20);color:#ff8f8f}
+.pri.p2{background:rgba(186,117,23,.20);color:#f0b45f}
+.pri.p3{background:rgba(255,255,255,.09);color:var(--text-dim)}
+.late{font-size:11px;padding:2px 6px;border-radius:5px;margin-left:6px;
+  background:rgba(226,75,74,.15);color:#ff8f8f;flex-shrink:0}
+
+/* 优先级选择 chips */
+.chips{display:flex;gap:6px;margin-top:10px}
+.chip{
+  padding:6px 12px;font-size:13px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:var(--text-dim);
+}
+.chip.on{background:var(--accent);color:#0d1117;border-color:var(--accent);font-weight:500}
+
+/* 数据条 */
+.bar{height:8px;background:rgba(255,255,255,.10);border-radius:4px;overflow:hidden;margin:10px 0 6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.stat{display:flex;justify-content:space-between;font-size:13px;color:var(--text-dim)}
+.big{font-size:34px;font-weight:600;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
+.big-lbl{font-size:13px;color:var(--text-dim);margin-top:2px}
+
+/* 第 2 版专属：加大字号和留白，对应"一眼看清" */
+.theme-b .txt{font-size:15px;line-height:1.7}
+.theme-b .card{padding:18px}
+.theme-b .card h2{font-size:18px}
+.theme-b .time{font-size:14px}
+/* 第 3 版专属：加大圆角 */
+.theme-c .card{padding:18px}
+
+@media (min-width:700px){
+  .side{width:132px;padding:16px 10px}
+  .nav a{display:flex;align-items:center;gap:9px;text-align:left;padding:11px 10px;font-size:13px}
+  .nav a .ico{margin-bottom:0;font-size:19px}
+}
+</style>
+</head>
+<body class="theme-b">
+
+<div class="switcher">
+  <button onclick="sw(this,'theme-a')">1 原版暗色</button>
+  <button class="on" onclick="sw(this,'theme-b')">2 护眼提亮</button>
+  <button onclick="sw(this,'theme-c')">3 柔光中性</button>
+</div>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">🧽</div>
+      <div class="name">Xpc每日任务</div>
+    </div>
+    <nav class="nav">
+      <a class="on"><span class="ico">⏰</span>今日</a>
+      <a><span class="ico">✅</span>待办</a>
+      <a><span class="ico">📅</span>计划</a>
+      <a><span class="ico">🎯</span>年度</a>
+      <a><span class="ico">📝</span>日志</a>
+      <a><span class="ico">📊</span>复盘</a>
+      <a><span class="ico">📌</span>文档</a>
+      <a><span class="ico">⚙️</span>设置</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <!-- 卡片 1：今日提醒 —— 打开第一眼看到的红清单，可真的点 -->
+    <section class="card">
+      <h2>⏰ 今日提醒</h2>
+      <div class="todo done" onclick="tg(this)"><span class="box">✓</span><span class="time">09:00</span><span class="txt">部门早会</span></div>
+      <div class="todo" onclick="tg(this)"><span class="box"></span><span class="time">10:30</span><span class="txt">整理客户 A 需求文档<span class="pri p1">P1</span><span class="late">已拖 2 天</span></span></div>
+      <div class="todo" onclick="tg(this)"><span class="box"></span><span class="time">14:00</span><span class="txt">提交本周周报<span class="pri p1">P1</span></span></div>
+      <div class="todo" onclick="tg(this)"><span class="box"></span><span class="time">17:30</span><span class="txt">写日报<span class="pri p2">P2</span></span></div>
+      <p class="hint">点一下就能勾。带「已拖」的是昨天没做完顺延过来的，会自动排在最前。</p>
+    </section>
+
+    <!-- 卡片 2：待办清单 —— 真的能输入，试手感 -->
+    <section class="card">
+      <h2>✅ 加一条待办</h2>
+      <div class="row">
+        <input type="text" id="ti" placeholder="比如：15:00 跟客户确认报价">
+        <button class="btn" onclick="add()">保存</button>
+      </div>
+      <div class="chips">
+        <span class="chip on" onclick="pick(this)">P1 紧急</span>
+        <span class="chip" onclick="pick(this)">P2 重要</span>
+        <span class="chip" onclick="pick(this)">P3 有空做</span>
+      </div>
+      <p class="hint">输入框和按钮都能真的用，敲一个试试手感。iOS 上字号 16px 才不会自动放大，这个已经调好了。</p>
+    </section>
+
+    <!-- 卡片 3：年度目标 —— 真实数据（2026-09-09 计算） -->
+    <section class="card">
+      <h2>🎯 年度目标</h2>
+      <div class="big">113</div>
+      <div class="big-lbl">距 2026 年底还有 113 天</div>
+      <div class="bar"><i style="width:69%"></i></div>
+      <div class="stat"><span>年度已过 69%</span><span>目标完成 2 / 5</span></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+function sw(btn, cls){
+  document.body.className = cls;
+  document.querySelectorAll('.switcher button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  window.scrollTo(0,0);
+}
+function tg(el){
+  el.classList.toggle('done');
+  el.querySelector('.box').textContent = el.classList.contains('done') ? '✓' : '';
+}
+function pick(el){
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+}
+function add(){
+  var i = document.getElementById('ti');
+  var v = i.value.trim();
+  if(!v) return;
+  var pri = document.querySelector('.chip.on').textContent.slice(0,2);
+  var d = document.createElement('div');
+  d.className = 'todo';
+  d.setAttribute('onclick','tg(this)');
+  d.innerHTML = '<span class="box"></span><span class="time">待定</span><span class="txt">'
+    + v.replace(/</g,'&lt;') + '<span class="pri p' + pri.charAt(1) + '">' + pri + '</span></span>';
+  document.querySelector('.card:nth-of-type(1) .todo:last-child').after(d);
+  i.value = '';
+  i.blur();
+}
+</script>
+</body>
+</html>
