@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="cwWDlooyFVhKT43AZnyJx9">
+<head data-page-node-id="jNBvvfJ1tpEZ5qpAcg0DqA">
+<meta charset="UTF-8" data-page-node-id="n5zDErElaIFE6rQgBgz4gC">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" data-page-node-id="uNdZ094EmWj5XmP7toifoi">
+<title>Xpc每日任务 · 部署指南</title>
+<style>
+:root{
+  --bg:#141b23; --card:#1a222c; --line:#2a3746;
+  --text:#d7dfe8; --dim:#93a1b1; --accent:#58a6ff;
+  --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  padding:18px 16px 60px;max-width:720px;margin:0 auto}
+h1{font-size:21px;margin:0 0 4px}
+.sub{color:var(--dim);font-size:13px;margin-bottom:22px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.step h2{font-size:16px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+.num{background:var(--accent);color:#0d1117;width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none}
+ol{margin:8px 0 0;padding-left:20px}
+ol li{margin:5px 0}
+code{background:#0d1117;border:1px solid var(--line);border-radius:5px;
+  padding:2px 6px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--accent);word-break:break-all}
+b{color:#fff}
+.box{background:#0d1117;border:1px solid var(--line);border-left:3px solid var(--warn);
+  border-radius:8px;padding:11px 13px;margin:11px 0;font-size:14px}
+.box.ok{border-left-color:var(--ok)}
+.box.bad{border-left-color:var(--bad)}
+.url{background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:11px 13px;
+  font:14px/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--accent);word-break:break-all;margin:8px 0}
+.k{background:#22304a;border-radius:4px;padding:1px 6px;font-size:13px;color:#c9d1d9}
+hr{border:0;border-top:1px solid var(--line);margin:26px 0}
+.q{font-size:16px;font-weight:600;margin:0 0 10px}
+.a{color:var(--dim);font-size:14px;margin:0 0 18px}
+.todo{background:#0d1117;border:1px dashed var(--line);border-radius:8px;padding:11px 13px;
+  margin:8px 0;font-size:14px}
+</style>
+</head>
+<body data-page-node-id="pIjL7JHYHI20RhfivuwKFL">
+
+<h1 data-page-node-id="Z6QRGlB2kZ9EggvyJn1z4d">🧽 Xpc每日任务 · 部署指南</h1>
+<div class="sub" data-page-node-id="9WGoDPBO9L3zeCiHM7b0xw">跟着走一遍，手机上就能用了。全程约 15 分钟。</div>
+
+<div class="step" data-page-node-id="WxJogvE9siHDJa9j1gfOwp">
+  <h2 data-page-node-id="XynORf3aojQyHLqrSCC4bh"><span class="num" data-page-node-id="vnIKrVKdzVKO1lrFd47pWQ">1</span>建一个 GitHub 仓库</h2>
+  <ol data-page-node-id="aLtpcAVjtEW01TGMBffLWx">
+    <li data-page-node-id="ZGMGMl1zdEWKdYkSfD0zNs">打开 <code data-page-node-id="y0IHRh9QS8TrkWLd4vK6s1">github.com</code> 登录</li>
+    <li data-page-node-id="IFjLxJNyuPgKkRMDkrPQfT">右上角 <b data-page-node-id="TCPPy3RUzcEA0cDj212djA">+</b> → <b data-page-node-id="HtL4eJSTqnDUeJ37fwfuUd">New repository</b></li>
+    <li data-page-node-id="BtImBGUXsPA1fpgDEriRZj">仓库名填 <code data-page-node-id="tWRk7jonU4svEncfKPvolr">xpc-daily</code></li>
+    <li data-page-node-id="z3xEB4VNGUv1aapsPUalMF">选 <b data-page-node-id="kdIDPCU5omvURfkm6axZ70">Public</b>（免费账号只有公开仓能开 Pages）</li>
+    <li data-page-node-id="0oFwYnGnBCfRpc2FpTggXZ"><b data-page-node-id="w7mIKEyUAQxQjOYnuDxYon">不要</b>勾任何初始化选项（README / .gitignore 都别勾）</li>
+    <li data-page-node-id="e4IlPewEBTcD4WUxENTcnB">点 <b data-page-node-id="PRmI3o9kVcIG6mEXAtRFzR">Create repository</b></li>
+  </ol>
+  <div class="box ok" data-page-node-id="FQQ2m9Lvx8mvRiAfj059T6">
+    <b data-page-node-id="LxdLF1HAR5EjTt5J2ArLug">公开仓库会不会泄露我的待办？不会。</b><br data-page-node-id="v0YKS0F5OhMhLpb9wHHXUA">
+    仓库里只有代码，一个字的数据都没有。你的待办和日志存在两个地方：手机浏览器本地，和你的<b data-page-node-id="ZcYxJRcjaRzrJdAlc1U34f">私有 Gist</b>（Gist 单独设为私有，跟仓库公不公开无关）。
+  </div>
+</div>
+
+<div class="step" data-page-node-id="LYqc0jjOY33rnNUDwGOQtn">
+  <h2 data-page-node-id="GjU4NFrzwEN6rL4NSpphUF"><span class="num" data-page-node-id="tIBfcitGMHceCyK60EKiIt">2</span>把文件传上去</h2>
+  <p style="margin:0 0 8px" data-page-node-id="kSsEYmANBXBP5TyKxkiJss">两种方式，选一个：</p>
+  <div class="todo" data-page-node-id="VAmQV8kpfJEilUOffQulFw">
+    <b data-page-node-id="oLUhRIhg7nt9S6ht7vSEqH">方式 A（推荐）：让我来推</b><br data-page-node-id="MGxWB6XA3RbgRTRnBMvk7e">
+    把你的 GitHub 用户名发我，我执行推送，中间会弹一个 GitHub 登录窗口，你登录一下就行。<b data-page-node-id="HaIGHwouBcXiPlBWcDXpZX">密码不经过我。</b>
+  </div>
+  <div class="todo" data-page-node-id="lPSqttcDV6smZcsZe8wyC5">
+    <b data-page-node-id="seqSRwdK011FbG7G87onh1">方式 B：自己敲命令</b><br data-page-node-id="ACq5TuQgUkr7Psiz1FnuMf">
+    在工作台文件夹里右键 →「在终端中打开」，粘贴这三条（把 <code data-page-node-id="827NPbSSHPXIguHRtoIH75">USER</code> 换成你的用户名）：
+    <div class="url" data-page-node-id="XHLKaZRgfqnRAVZxu8hb8w">git remote add origin https://github.com/USER/xpc-daily.git<br data-page-node-id="H5bRykL52kcFtn2sAH8s6j">git branch -M main<br data-page-node-id="QnkBA8YNNA0pnoXFscndFW">git push -u origin main</div>
+  </div>
+</div>
+
+<div class="step" data-page-node-id="uq4wnGVhbLICbgrCuSihA5">
+  <h2 data-page-node-id="nqE3ACX8z7UHjcMmYgV31d"><span class="num" data-page-node-id="A0dh9IvwHOsZJPnIajXwFu">3</span>开启 GitHub Pages</h2>
+  <ol data-page-node-id="PJRGPGCXxwJuwQAMFI95KZ">
+    <li data-page-node-id="15lAehHKd6HsQGmTD2ltpH">仓库页面 → 顶部 <b data-page-node-id="GpFMdSQWK08YmMmAWkFUSV">Settings</b></li>
+    <li data-page-node-id="YdO3eZmnb5YaXQmDO0eQIt">左侧 <b data-page-node-id="Qjt7SRmaFdCjEWK8n6NX9H">Pages</b></li>
+    <li data-page-node-id="1Pb3KDOSZB7c94gWbW3Y3g">Source 选 <b data-page-node-id="7aXARNnNrGczLCi0x72sbI">Deploy from a branch</b></li>
+    <li data-page-node-id="2OrPhYWbW4KqRIRFeh9f0m">Branch 选 <b data-page-node-id="YG5b64c9tYIPTNrGwyRu98">main</b>，文件夹 <b data-page-node-id="mqMBHgODGI3ddc4FSo6cPn">/ (root)</b> → Save</li>
+    <li data-page-node-id="5GzV9s2TLnqZbgwpVmlzMH">等 1–2 分钟，刷新，页面顶部会出现你的网址：</li>
+  </ol>
+  <div class="url" data-page-node-id="gu6ZbQJ20GdlV0gJ1CHGdm">https://USER.github.io/xpc-daily/</div>
+  <div class="box" data-page-node-id="w3FXbT0VHFguO0ELfbEEAP">这个网址就是你的工作台，手机电脑都能开。国内访问 GitHub 时快时慢，打不开就多刷两次。</div>
+</div>
+
+<div class="step" data-page-node-id="teP351I6x9xjH4PzEtgiAW">
+  <h2 data-page-node-id="7EoJgYIkXP8utFUuwNkffv"><span class="num" data-page-node-id="dcCYxjIHPctRSjKRc8fFaZ">4</span>加到手机桌面（变成 App）</h2>
+  <ol data-page-node-id="uUtyyplJV9k4CWji3O5M1c">
+    <li data-page-node-id="fWnqb8O8243Ato5AEUpeIC"><b data-page-node-id="Gpjn0f7BHRIvzQ2ROW2ZNm">手机浏览器</b>打开上面那个网址（Safari 或 Chrome，别用微信内置浏览器）</li>
+    <li data-page-node-id="KQxxICU1kqAokCj0gsBXQG"><b data-page-node-id="3CRVVimVDX6RHbU06vly1g">iPhone</b>：底部「分享」按钮 → 往下滑 →「添加到主屏幕」<br data-page-node-id="pHC2un8q41gX4p4RrnNX89">
+        <b data-page-node-id="1YyYY8G2E41LvEeZh9YHtH">安卓</b>：右上角「⋮」→「添加到主屏幕 / 安装应用」</li>
+    <li data-page-node-id="eWh3QWnbJHSIKAvRhdMXUB">桌面上会出现 🧽 图标，名字是 <b data-page-node-id="CyXsqBdp20hjIt98vP8O0N">Xpc</b></li>
+  </ol>
+  <div class="box ok" data-page-node-id="pLiRkivo5zlXzGaFjrCer3">之后点开就是全屏的，没有地址栏，跟 App 一样。断网也能用。</div>
+</div>
+
+<div class="step" data-page-node-id="olMxGrB5pLOyDFZnQs4V3W">
+  <h2 data-page-node-id="x9Ov76TQoIhXYB90KMNYqP"><span class="num" data-page-node-id="GHDERMd6z5QeAP0FzM0aO2">5</span>开启双端同步</h2>
+  <p style="margin:0 0 8px" data-page-node-id="G6GLaWXuh15Zdt9YwfHHRE">先拿一个 token（只勾 gist 权限）：</p>
+  <ol data-page-node-id="a7jS8dTRx4CmGh7yRDC16s">
+    <li data-page-node-id="rtPuWo94A7aWFy4bbegKD3">github.com → 右上角头像 → <b data-page-node-id="ISfaaLVbcWFF1OBTkRip9P">Settings</b></li>
+    <li data-page-node-id="0wj9xT2pjgRK5Q0o95pkwH">左下 <b data-page-node-id="WjN7GSoCpTZZ1HXF9iO4gm">Developer settings</b> → <b data-page-node-id="qtLttV8MdXIG6LjuQSjxwX">Personal access tokens</b> → <b data-page-node-id="duT8KSgix20U58ZgzJHWw0">Tokens (classic)</b></li>
+    <li data-page-node-id="cngvyyrC3yLw5LJTiu92eP"><b data-page-node-id="3sWOWawxf1GRcyrou1T4Ww">Generate new token (classic)</b></li>
+    <li data-page-node-id="xsiLMM50rzVnqkXp4aCDft">Note 填 <code data-page-node-id="lgv8VoiPkqNMgAh8ssTTdZ">xpc-daily</code>，过期选 <b data-page-node-id="b2YedL5ECRTFFrhApzhGMS">No expiration</b></li>
+    <li data-page-node-id="uCVFiVLRHNvojQ1xRsF8Nh">只勾 <b data-page-node-id="1exuH9bbfbq1W86dQcjrBg">gist</b> 一项（别多勾）</li>
+    <li data-page-node-id="VeaXGyFnfI31JjlsYNeAC7">生成后<b data-page-node-id="EonvyjCwINgBe6PB0nl2RG">立刻复制</b> —— 关掉页面就再也看不到了，先粘到备忘录</li>
+  </ol>
+  <p style="margin:12px 0 8px" data-page-node-id="Pe1Dba2mz4eCMIEQxpWlSh">然后：<b data-page-node-id="5fFnRgSu6Ws3MgXFoLIlc8">两台设备都打开工作台</b> → 设置 → 粘贴 token →「开启同步」。</p>
+  <div class="box bad" data-page-node-id="mqmCyjCpYwfykTAZsVUTnc">
+    <b data-page-node-id="7HUHcKpetrRhDgqXlx9F9X">token 只显示一次，务必先存备忘录。</b>丢了只能重新生成一个，不费事但别偷懒。
+  </div>
+</div>
+
+<hr data-page-node-id="CMJqYHBYBNEONixfYp39PO">
+
+<h1 style="font-size:18px" data-page-node-id="FYgURjjpjseWjGta9JrMhP">常见问题</h1>
+
+<div class="q" data-page-node-id="f3MlxfJeR4FmHNPRm2BKF2">数据存在哪？</div>
+<div class="a" data-page-node-id="BNWnrF4XIKJjiZtZR1faXL">主要在你手机浏览器里，断网照用。开了同步后，云端（私有 Gist）多一份，用于两端对齐。备份文件下载后自己存好。</div>
+
+<div class="q" data-page-node-id="GCe2cLWR27iuhONm4khzmY">同步密码忘了怎么办？</div>
+<div class="a" data-page-node-id="HkfLAgDrEMNmUNpdonwfHY">没有找回功能。好在<b data-page-node-id="HGdSnCx3Cc2XiR4vtz0qA0">本地数据不会因为忘记密码而丢失</b> —— 重生成一个 token 填进去就行。所以先做一次「导出备份」永远是划算的。</div>
+
+<div class="q" data-page-node-id="A58JjcPnaPxmZSJRmG6pgE">换手机了怎么办？</div>
+<div class="a" data-page-node-id="38XrGW8J8BktZd8xOX7hH6">新手机打开网址 → 设置里填同一个 token → 自动拉回所有数据。或者用「恢复备份」导入之前导出的 JSON。</div>
+
+<div class="q" data-page-node-id="3fkpgAPHwJFOjLlDwzanKT">为什么不能到点响铃提醒我？</div>
+<div class="a" data-page-node-id="a8tijOkIncflytyOZRcnQy">网页没有后台推送，iOS 和安卓都限制了。想要真响铃，把固定提醒事项加到手机日历里，那个能响。</div>
+
+<div class="q" data-page-node-id="KIKkfrah9Djod0VvMvNVxR">以后想加功能怎么办？</div>
+<div class="a" data-page-node-id="4FEVGvgSvLZzTMBHkd3GCM">直接说「给我的工作台加个 XX 功能」。工程里每个功能都有独立的代码区块（标着 <span class="k" data-page-node-id="pt1CA0L0GCOg6ppejLJj86">功能：XX START / END</span>），新功能插进去不会碰坏已有的东西，改完我会重跑一遍测试。</div>
+
+</body>
+</html>

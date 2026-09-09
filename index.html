@@ -13,23 +13,26 @@
   ║  5. 同步后端是 GitHub 私有 Gist，不是边缘函数                  ║
   ╚══════════════════════════════════════════════════════════════╝
 -->
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<html lang="zh-CN" data-page-node-id="bWskHHQUPAyCCkpRevZQb6">
+<head data-page-node-id="0tip8WqGB5f6uzoKv9rkzi">
+<meta charset="utf-8" data-page-node-id="EEZ7K9WLhZMKysWhemH2jx">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" data-page-node-id="Gxg9BseOSB3TTfr4xf7Exj">
 <title>Xpc每日任务</title>
 
 <!-- PWA：这四行决定了"添加到主屏幕"之后是不是全屏、图标好不好看 -->
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Xpc">
-<meta name="theme-color" content="#1a222c">
+<link rel="manifest" href="manifest.json" data-page-node-id="0zvGd0w10PBnBVEra1AqAt">
+<link rel="apple-touch-icon" href="icon.png" data-page-node-id="VbHIVdPcWufsw3MeiV1fYZ">
+<meta name="apple-mobile-web-app-capable" content="yes" data-page-node-id="2XVrAueE9vKZBx1vXG3chR">
+<meta name="apple-mobile-web-app-status-bar-style" content="default" data-page-node-id="Gf7d0kR9zT7zmG39Y6aGFA">
+<meta name="apple-mobile-web-app-title" content="Xpc" data-page-node-id="C1X6B0re9UMfLFbX3Vm96v">
+<meta name="theme-color" content="#1a222c" data-page-node-id="I7ksa3caZoROgIF9r068bE">
 
 <style>
 /* ==== 主题变量：护眼提亮版（暗色调优，降低光晕 + 提高次要文字亮度） ==== */
 :root{
+  /* 让原生控件（时间选择器、下拉、滚动条）跟着走暗色，
+     否则手机上 input[type=time] 的时钟图标是黑底黑字，看不清 */
+  color-scheme:dark;
   --bg:#141b23;
   --sidebar:#1a222c;
   --sidebar-text:#aab5c1;
@@ -141,6 +144,20 @@ select{appearance:none;-webkit-appearance:none}
 .item:last-child{border-bottom:none}
 .item .grow{flex:1;min-width:0;font-size:16px;line-height:1.7}
 .item .del{color:var(--text-dim);font-size:16px;background:none;border:none;padding:0 4px;flex-shrink:0}
+/* 备注按钮 + 备注行（记录"为什么没做完"） */
+.item .note-btn{background:none;border:none;color:var(--text-dim);font-size:15px;padding:0 4px;flex-shrink:0;opacity:.7}
+.item .note-btn:active{opacity:1}
+.item.has-note .note-btn{opacity:1;color:var(--accent)}
+.note-line{
+  margin:0 0 8px;padding:8px 12px;background:#0d1117;
+  border:1px solid var(--line);border-left:3px solid var(--warn,#d29922);
+  border-radius:8px;font-size:14px;line-height:1.6;color:var(--text-dim);
+  white-space:pre-wrap;word-break:break-word;cursor:pointer
+}
+.note-line:active{border-color:var(--accent)}
+.note-edit{margin:0 0 10px}
+.note-edit textarea{width:100%;min-height:66px;font-size:16px}
+.note-edit .row{margin-top:8px}
 .box{
   width:22px;height:22px;flex-shrink:0;margin-top:3px;cursor:pointer;
   border:2px solid var(--accent);border-radius:6px;
@@ -252,221 +269,222 @@ select{appearance:none;-webkit-appearance:none}
 }
 </style>
 </head>
-<body>
+<body data-page-node-id="fdqpzeswNqV08KpS7pITSj">
 
-<div class="app">
+<div class="app" data-page-node-id="sPMzsMmivFDyncEwSqXJTB">
 
   <!-- ==== 侧边栏 START ==== -->
-  <aside class="side">
-    <div class="brand">
-      <div class="logo">🧽</div>
-      <div class="name">Xpc每日任务</div>
+  <aside class="side" data-page-node-id="ElHyj7xntmRD8EzHGzhjTH">
+    <div class="brand" data-page-node-id="ILGxt51PKUeiIHVuWwFo9O">
+      <div class="logo" data-page-node-id="s4nRiidtMxMNnbLYGhT8aH">🧽</div>
+      <div class="name" data-page-node-id="iwp3rTvdA7MNDpTAEMPPkZ">Xpc每日任务</div>
     </div>
-    <nav class="nav" id="nav">
+    <nav class="nav" id="nav" data-page-node-id="v9aBtIPGh8Ppz77v7EnUlC">
       <!-- 由 App.routes 自动渲染 -->
     </nav>
   </aside>
   <!-- ==== 侧边栏 END ==== -->
 
-  <main class="main" id="main">
+  <main class="main" id="main" data-page-node-id="qLZjccxQt5in9Mr6FEC1HA">
 
     <!-- ==== 功能：今日 START ==== -->
-    <section class="page" id="page-today">
-      <div class="page-title">今天</div>
-      <div class="page-sub" id="todaySub"></div>
-      <div id="todayWarn"></div>
-      <div class="card wide">
-        <div class="hero" id="todayHero">0<span class="unit">件还没做</span></div>
-        <p class="hint" id="todayHint"></p>
+    <section class="page" id="page-today" data-page-node-id="dJy84veOEWf53fwqoewfZ7">
+      <div class="page-title" data-page-node-id="qmdYV3VVi8kV6zRc04rgLi">今天</div>
+      <div class="page-sub" id="todaySub" data-page-node-id="P6YNbipbMUXLk99yWsXRS9"></div>
+      <div id="todayWarn" data-page-node-id="FN5iqA6u4lclOiLFplawb0"></div>
+      <div class="card wide" data-page-node-id="htuNEpbGDBYJEAca2ApKJh">
+        <div class="hero" id="todayHero" data-page-node-id="Gb24UkJibCkzsZRxoEtcrJ">0<span class="unit" data-page-node-id="CEHz3INRYC7aspLoCJSRe9">件还没做</span></div>
+        <p class="hint" id="todayHint" data-page-node-id="tzPZWy14vL92Bx3UDuQdVq"></p>
       </div>
-      <div class="card wide">
-        <h2>⏰ 待办 · 今天该做的</h2>
-        <div id="todayList"></div>
+      <div class="card wide" data-page-node-id="cyAbpZnNHPF7yUNRuMOcmZ">
+        <h2 data-page-node-id="lXbWokkTFeAxNUkBhXHGUb">⏰ 待办 · 今天该做的</h2>
+        <div id="todayList" data-page-node-id="cxM4q1kABOJh3Hsi1HK0HD"></div>
       </div>
-      <div class="card wide">
-        <h2>📅 固定行程</h2>
-        <div id="todayPlan"></div>
+      <div class="card wide" data-page-node-id="Jr3YvK3frdhCTAuooPwT2k">
+        <h2 data-page-node-id="J6c0D4YAtoEJarWv3NWei8">📅 固定行程</h2>
+        <div id="todayPlan" data-page-node-id="Xfc2GfLHLAd9KJAIokWhC3"></div>
       </div>
     </section>
     <!-- ==== 功能：今日 END ==== -->
 
     <!-- ==== 功能：待办 START ==== -->
-    <section class="page" id="page-todo">
-      <div class="page-title">待办</div>
-      <div class="page-sub">挂时间、排优先级，没做完的自动顺延</div>
-      <div class="card wide">
-        <h2>✅ 加一条</h2>
-        <div class="row">
-          <input type="text" id="todoText" placeholder="要做的事，比如：整理客户 A 需求文档">
+    <section class="page" id="page-todo" data-page-node-id="hH1dW8TWGacmvnFvDJivCG">
+      <div class="page-title" data-page-node-id="88DeCY6IRScH3JjtPRItrh">待办</div>
+      <div class="page-sub" data-page-node-id="O1UHV0pxmxCIBfgBIsUSmd">挂时间、排优先级，没做完的自动顺延</div>
+      <div class="card wide" data-page-node-id="C0lr597ZZ1MFPuIdlyS6h0">
+        <h2 data-page-node-id="EQxylUY9wzKQfhHliC9Vya">✅ 加一条</h2>
+        <div class="row" data-page-node-id="z2JPrfN6PE7dtEZr2lSmQK">
+          <input type="text" id="todoText" placeholder="要做的事，比如：整理客户 A 需求文档" data-page-node-id="a97rbNO6EG8olY7JKSFTFb">
         </div>
-        <div class="row" style="margin-top:10px">
-          <input type="text" id="todoTime" placeholder="时间 09:00（可留空）" style="max-width:160px">
-          <select id="todoPri" style="max-width:140px">
-            <option value="1">P1 紧急</option>
-            <option value="2" selected>P2 重要</option>
-            <option value="3">P3 有空做</option>
+        <div class="row" style="margin-top:10px" data-page-node-id="tMLkcddnXeT9OFG8eroV0r">
+          <input type="time" id="todoTime" style="max-width:160px" title="选一个时间点，默认就是现在" data-page-node-id="GrOFL3fq2ThUi09pqWEu0g">
+          <select id="todoPri" style="max-width:140px" data-page-node-id="XnqlHxvAjJgdqYpT66729v">
+            <option value="1" data-page-node-id="GFFmtC8KetpCHOrgXQgG2W">P1 紧急</option>
+            <option value="2" selected data-page-node-id="lCnNcK1QuRi5DwHVVZwNE9">P2 重要</option>
+            <option value="3" data-page-node-id="2pCWrMS1BMazpZsQGEtvV6">P3 有空做</option>
           </select>
-          <button class="btn" onclick="Todo.add()">添加</button>
+          <button class="btn" onclick="Todo.add()" data-page-node-id="AOoUBDKSgbwpWLAmZV8zwD">添加</button>
         </div>
-        <p class="hint">没做完的第二天会自动出现在「今天」，并标上拖了几天。做完后会记下这条挂了多久。</p>
+        <p class="hint" data-page-node-id="SSQal7Wnd1fphCQmBEeVsM">时间默认就是<b>现在</b>，点一下能改成别的（也可以清空，表示不挂时间）。<br>
+          没做完的第二天会自动出现在「今天」，并标上拖了几天。每一条都能点 💬 记一笔<b>为什么没做</b>。</p>
       </div>
-      <div class="card wide">
-        <h2>📋 进行中</h2>
-        <div id="todoOpen"></div>
+      <div class="card wide" data-page-node-id="HLswLCWjeuHEH6Dzc6SjNw">
+        <h2 data-page-node-id="MRyvgbLoVfjBHWQUKjq672">📋 进行中</h2>
+        <div id="todoOpen" data-page-node-id="H7OY9sJLZ3AR80IXcYCuDK"></div>
       </div>
-      <div class="card wide">
-        <h2>🎉 已完成</h2>
-        <div id="todoDone"></div>
-        <p class="hint" id="todoStat"></p>
+      <div class="card wide" data-page-node-id="sojPp9uNBMdMV3BL9dWjbM">
+        <h2 data-page-node-id="zDdfZuF9JcjiG0au8Mua4t">🎉 已完成</h2>
+        <div id="todoDone" data-page-node-id="IiB04DDCbalerkr27jC0cO"></div>
+        <p class="hint" id="todoStat" data-page-node-id="hNG5uhzGDgD0ZKtqcqyjoF"></p>
       </div>
     </section>
     <!-- ==== 功能：待办 END ==== -->
 
     <!-- ==== 功能：计划 START ==== -->
-    <section class="page" id="page-plan">
-      <div class="page-title">固定行程</div>
-      <div class="page-sub">每天都要做的，写一次就够</div>
-      <div class="card wide">
-        <h2>➕ 加一项</h2>
-        <div class="row">
-          <input type="text" id="planTime" placeholder="09:00" style="max-width:110px">
-          <input type="text" id="planText" placeholder="部门早会">
-          <button class="btn" onclick="Plan.add()">添加</button>
+    <section class="page" id="page-plan" data-page-node-id="oRTKICBdFTCDjpky3t7d9e">
+      <div class="page-title" data-page-node-id="dbDDTDNm4YMTugPfQhnjcG">固定行程</div>
+      <div class="page-sub" data-page-node-id="EW8zr4P1CO6gHNxnMdUHn8">每天都要做的，写一次就够</div>
+      <div class="card wide" data-page-node-id="3AxDTDplGblyohXYomZBdi">
+        <h2 data-page-node-id="AxpgCMrH7Qdl7n0GTCZcNS">➕ 加一项</h2>
+        <div class="row" data-page-node-id="5ebjdwuiEaGY3rSMIo1Vh5">
+          <input type="text" id="planTime" placeholder="09:00" style="max-width:110px" data-page-node-id="fXpsn7GQHdn9cJJBkdxHVN">
+          <input type="text" id="planText" placeholder="部门早会" data-page-node-id="DiICjZF85N6qeowVUZxTqs">
+          <button class="btn" onclick="Plan.add()" data-page-node-id="uYTDQGhqFVECYhqjLkkvVM">添加</button>
         </div>
-        <p class="hint">这些每天自动生成。勾完第二天自动重置，不用手动清。</p>
+        <p class="hint" data-page-node-id="AaH2ujB5cc1D6uV8PFOvGU">这些每天自动生成。勾完第二天自动重置，不用手动清。</p>
       </div>
-      <div class="card wide">
-        <h2>📅 每天要做</h2>
-        <div id="planList"></div>
+      <div class="card wide" data-page-node-id="SvtIMXXb2JYW45lt3Rblvk">
+        <h2 data-page-node-id="b5dfzpOV91NpCbAn85sUHI">📅 每天要做</h2>
+        <div id="planList" data-page-node-id="bo7u8hHDE3KOHFAg6oZO7C"></div>
       </div>
     </section>
     <!-- ==== 功能：计划 END ==== -->
 
     <!-- ==== 功能：年度 START ==== -->
-    <section class="page" id="page-goal">
-      <div class="page-title">年度目标</div>
-      <div class="page-sub" id="goalSub"></div>
-      <div class="card wide">
-        <div class="hero" id="goalDays">0<span class="unit">天</span></div>
-        <p class="hint">距今年结束</p>
-        <div class="bar"><i id="goalBar" style="width:0%"></i></div>
-        <div class="stat"><span id="goalPct"></span><span id="goalCnt"></span></div>
+    <section class="page" id="page-goal" data-page-node-id="Vwuh22gIz9KimrxyflM6Fr">
+      <div class="page-title" data-page-node-id="rETggqJx1CG4A9b1MhEQRM">年度目标</div>
+      <div class="page-sub" id="goalSub" data-page-node-id="UqQRGfD1xVRl8BsXTyNzCx"></div>
+      <div class="card wide" data-page-node-id="luuvZwAiOyFPCCFrphViEs">
+        <div class="hero" id="goalDays" data-page-node-id="NpAwMsjQESLYapjtOVbsEW">0<span class="unit" data-page-node-id="XJ7lCuWTKQgEc8JL5fbf6L">天</span></div>
+        <p class="hint" data-page-node-id="bWHKvJLNnTxHMkkyMNXMnW">距今年结束</p>
+        <div class="bar" data-page-node-id="ldx4IYmfqBT8vV6VVjVKTh"><i id="goalBar" style="width:0%" data-page-node-id="IBtT6rs8CkQpBILfzSVeKC"></i></div>
+        <div class="stat" data-page-node-id="mNowfLKhw6j2smOcGJTmDN"><span id="goalPct" data-page-node-id="E6Jij7oQhir4UPCgDuay0F"></span><span id="goalCnt" data-page-node-id="xQjsWxaEK1Lixc4R5CLmLs"></span></div>
       </div>
-      <div class="card wide">
-        <h2>🎯 今年的目标</h2>
-        <div class="row">
-          <input type="text" id="goalText" placeholder="比如：拿下 A 客户">
-          <button class="btn" onclick="Goal.add()">添加</button>
+      <div class="card wide" data-page-node-id="hLvCA7xAy9nUNFPDHatoYW">
+        <h2 data-page-node-id="QkPR0fWAT76wEZZMySTnvf">🎯 今年的目标</h2>
+        <div class="row" data-page-node-id="ow66lOmBpA0QGZfhTEg2Yk">
+          <input type="text" id="goalText" placeholder="比如：拿下 A 客户" data-page-node-id="xAOjAzhOzKm7wae8acCZo6">
+          <button class="btn" onclick="Goal.add()" data-page-node-id="YfW95lmJulkU8yZgMZtcds">添加</button>
         </div>
-        <div id="goalList" style="margin-top:12px"></div>
+        <div id="goalList" style="margin-top:12px" data-page-node-id="AC3LVL2bENeJ8GUHUHLF1M"></div>
       </div>
     </section>
     <!-- ==== 功能：年度 END ==== -->
 
     <!-- ==== 功能：日志 START ==== -->
-    <section class="page" id="page-log">
-      <div class="page-title">工作日志</div>
-      <div class="page-sub" id="logSub"></div>
-      <div class="card wide">
-        <h2>📝 <span id="logDate"></span>
+    <section class="page" id="page-log" data-page-node-id="9pOx5ZFHVagzOR6cTbUTBZ">
+      <div class="page-title" data-page-node-id="8wOuJZKoIgyjiW4xYONjPV">工作日志</div>
+      <div class="page-sub" id="logSub" data-page-node-id="OujxIRvOtzy38Otfxch0NA"></div>
+      <div class="card wide" data-page-node-id="pD4RGXQCAXiecln3f7z8me">
+        <h2 data-page-node-id="QOlWG6XUx0uaKUt5vZ7Kxc">📝 <span id="logDate" data-page-node-id="CL0jc3CtQMUezF9FwKHUYj"></span>
           <button class="btn ghost" id="logSyncMini" style="float:right;font-size:12px;padding:4px 10px;margin:0"
-                  onclick="Settings.toggleLogSync()"></button>
+                  onclick="Settings.toggleLogSync()" data-page-node-id="2epSKVYbi71fK9lPJ7pjNQ"></button>
         </h2>
         <textarea id="logText" placeholder="今天做了什么、卡在哪、明天先干什么" oninput="Log.later()"></textarea>
-        <p class="hint" id="logHint"></p>
+        <p class="hint" id="logHint" data-page-node-id="XUQVUgCK4ETm3WX8iigfgB"></p>
       </div>
-      <div class="card wide">
-        <h2>📚 往日</h2>
-        <div id="logList"></div>
+      <div class="card wide" data-page-node-id="uSWSWjQMRCZWQ1OeDd5lMN">
+        <h2 data-page-node-id="P58eYpj9rS0o4zmQYSW4kL">📚 往日</h2>
+        <div id="logList" data-page-node-id="T6E3XGYzB0333u968hRqk2"></div>
       </div>
     </section>
     <!-- ==== 功能：日志 END ==== -->
 
     <!-- ==== 功能：文档 START ==== -->
-    <section class="page" id="page-docs">
-      <div class="page-title">云文档</div>
-      <div class="page-sub">常用文档入口，点一下直达</div>
-      <div class="card wide">
-        <h2>➕ 加一个入口</h2>
-        <div class="row">
-          <input type="text" id="docName" placeholder="名字，比如：项目周报">
+    <section class="page" id="page-docs" data-page-node-id="8uDqSjIs5i2PiDzO1ClZuD">
+      <div class="page-title" data-page-node-id="tkM3QvcJ3jw7CaDrsCiHIc">云文档</div>
+      <div class="page-sub" data-page-node-id="GVW0y2lReYVL2Io3YyuygS">常用文档入口，点一下直达</div>
+      <div class="card wide" data-page-node-id="IEQdKCTgeIFFKhg5Ed3O7R">
+        <h2 data-page-node-id="DLIjf77ocAh7xXBRWKMnpx">➕ 加一个入口</h2>
+        <div class="row" data-page-node-id="yaWO8TALiW6Js0rRoddBNk">
+          <input type="text" id="docName" placeholder="名字，比如：项目周报" data-page-node-id="Oh6dfP4LhHnR4XY8wlHp94">
         </div>
-        <div class="row" style="margin-top:10px">
-          <input type="text" id="docUrl" placeholder="链接，以 https:// 开头">
-          <button class="btn" onclick="Docs.add()">添加</button>
+        <div class="row" style="margin-top:10px" data-page-node-id="GTZ3ykdN8FQmZVkoM6F9GC">
+          <input type="text" id="docUrl" placeholder="链接，以 https:// 开头" data-page-node-id="MHY5U1jkpcqnXpMQIGKjMN">
+          <button class="btn" onclick="Docs.add()" data-page-node-id="BpPRg4cdEA3uoxDGOpBigg">添加</button>
         </div>
-        <p class="hint">把 WPS / 金山文档的分享链接粘进来，以后从这里点开，不用每次翻聊天记录。</p>
+        <p class="hint" data-page-node-id="woLAwrBFGkLS2HnJBInpFY">把 WPS / 金山文档的分享链接粘进来，以后从这里点开，不用每次翻聊天记录。</p>
       </div>
-      <div class="card wide">
-        <h2>📌 我的入口</h2>
-        <div id="docList"></div>
+      <div class="card wide" data-page-node-id="PWewhFotGWhrJJFwZeXfpk">
+        <h2 data-page-node-id="lXHihPg9DuEn2mX1mCoCbd">📌 我的入口</h2>
+        <div id="docList" data-page-node-id="xOLp3qT2oyVc2k8WT4krwo"></div>
       </div>
     </section>
     <!-- ==== 功能：文档 END ==== -->
 
     <!-- ==== 功能：周复盘 START ==== -->
-    <section class="page" id="page-recap">
-      <div class="page-title">这一周</div>
-      <div class="page-sub">周日晚上看一眼，比任何提醒都管用</div>
-      <div class="card wide">
-        <div id="recapBody"></div>
-        <div class="row" style="margin-top:18px">
-          <button class="btn" onclick="Recap.makeCard()">生成图卡</button>
+    <section class="page" id="page-recap" data-page-node-id="GDE4AgGWXPYPm1pmj1ps9Z">
+      <div class="page-title" data-page-node-id="sQpNgMsOezVHhdMR9fesMU">这一周</div>
+      <div class="page-sub" data-page-node-id="52gz6CW5FmusOY9xUjCyEK">周日晚上看一眼，比任何提醒都管用</div>
+      <div class="card wide" data-page-node-id="XrC270aBD755D0LHSLBFbl">
+        <div id="recapBody" data-page-node-id="ohCDeDISNRNzkuh2CzagsH"></div>
+        <div class="row" style="margin-top:18px" data-page-node-id="xaF13nxgFfmaQAR20gfzNk">
+          <button class="btn" onclick="Recap.makeCard()" data-page-node-id="ZkGC9Ey0IxpTpBXphsrw3W">生成图卡</button>
         </div>
-        <p class="hint">生成一张能存下来的图，想发就发。图上只有汇总数字，不含你的具体记录内容。</p>
+        <p class="hint" data-page-node-id="uI6C9tIkFlAK4AlGFgRwnY">生成一张能存下来的图，想发就发。图上只有汇总数字，不含你的具体记录内容。</p>
       </div>
     </section>
     <!-- ==== 功能：周复盘 END ==== -->
 
     <!-- ==== 功能：设置 START ==== -->
-    <section class="page" id="page-settings">
-      <div class="page-title">设置</div>
+    <section class="page" id="page-settings" data-page-node-id="GQBHVTXVr2z9OLIRtly70q">
+      <div class="page-title" data-page-node-id="cxtVdUGFaFKUMfTd5p9yV1">设置</div>
 
-      <div class="card">
-        <h2>💾 数据备份</h2>
-        <p class="hint" style="margin-top:0;margin-bottom:12px">
-          你的数据主要存在这台设备的浏览器里，不在任何服务器上。<br>
+      <div class="card" data-page-node-id="vqAn1kGuJmQZY0RAIOtHc0">
+        <h2 data-page-node-id="hzZ81BLMgizRpHDkXHSe92">💾 数据备份</h2>
+        <p class="hint" style="margin-top:0;margin-bottom:12px" data-page-node-id="DiqgG55g4G9O07c01YIePH">
+          你的数据主要存在这台设备的浏览器里，不在任何服务器上。<br data-page-node-id="DcL2mfZFEtugjJWPQQIAcb">
           换设备、清理浏览器数据前，记得先导出备份。
         </p>
-        <div class="row">
-          <button class="btn" onclick="Store.exportFile()">导出备份</button>
-          <button class="btn ghost" onclick="document.getElementById('importFile').click()">恢复备份</button>
+        <div class="row" data-page-node-id="T8GzXThBu5jWDgjmqTTNrH">
+          <button class="btn" onclick="Store.exportFile()" data-page-node-id="EJQAY8VxjiRGJbRzpBHEhf">导出备份</button>
+          <button class="btn ghost" onclick="document.getElementById('importFile').click()" data-page-node-id="8zgvfmBS5RwD0AhucMyADf">恢复备份</button>
         </div>
-        <input type="file" id="importFile" accept=".json" style="display:none" onchange="Store.importFile(this)">
-        <p class="hint" id="backupInfo"></p>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="Store.importFile(this)" data-page-node-id="CZtHhM2Jr0dytpduqEAuJO">
+        <p class="hint" id="backupInfo" data-page-node-id="Z9gceVi4tUgZrg41tAvKOi"></p>
       </div>
 
       <!-- ==== 云端同步卡片 START ==== -->
-      <div class="card wide" id="gistCard">
-        <h2>🔄 双端同步 <span class="hint" id="gistState" style="margin:0 0 0 auto;font-size:var(--fs-meta)"></span></h2>
-        <div id="gistOff">
-          <p class="hint" style="margin-top:0">
-            数据存在一个<b>私有 Gist</b> 里，只有你的 GitHub 账号能看到，走 GitHub 官方接口，不经第三方服务器。<br>
-            本地那份始终在，<b>断网照样能记</b>。两台设备填同一个 token，会自动找到同一份数据。<br>
-            <b>token 只显示一次，生成时先粘到备忘录。</b>
+      <div class="card wide" id="gistCard" data-page-node-id="HOHn1eb4yOqqLl5q4ga5QM">
+        <h2 data-page-node-id="xgHq7WueETU2n4fRcf1icV">🔄 双端同步 <span class="hint" id="gistState" style="margin:0 0 0 auto;font-size:var(--fs-meta)" data-page-node-id="Iuq9SWwFw7V9nrRA3AdzRm"></span></h2>
+        <div id="gistOff" data-page-node-id="wowjmdZDG61YUBhK9HCAjB">
+          <p class="hint" style="margin-top:0" data-page-node-id="IaLyEctfuzCHR9tw5LtEnI">
+            数据存在一个<b data-page-node-id="zRgIuG6rcuL7d93uUoxGAn">私有 Gist</b> 里，只有你的 GitHub 账号能看到，走 GitHub 官方接口，不经第三方服务器。<br data-page-node-id="t55LaRpAmoCf0TB5k8t2Vu">
+            本地那份始终在，<b data-page-node-id="g2d4tq1PL6RPE62BCrEkYe">断网照样能记</b>。两台设备填同一个 token，会自动找到同一份数据。<br data-page-node-id="YIeWXt2BdltKnjz4arQB7t">
+            <b data-page-node-id="MnbfesvZ09eUg17GXicSLi">token 只显示一次，生成时先粘到备忘录。</b>
           </p>
-          <div style="margin-top:14px">
-            <input type="password" id="gistToken" placeholder="GitHub token（只需勾 gist 权限）" autocomplete="off">
-            <p class="hint">
-              怎么拿：github.com → 右上角头像 → Settings → Developer settings<br>
-              → Personal access tokens → Tokens (classic) → Generate new token<br>
-              → 只勾 <b>gist</b> 一项 → 生成后复制（关掉就看不到了）
+          <div style="margin-top:14px" data-page-node-id="eoLEorjCAMPdnFmtzXMNYd">
+            <input type="password" id="gistToken" placeholder="GitHub token（只需勾 gist 权限）" autocomplete="off" data-page-node-id="RKCXwKlRIu05sIRWc0AM4a">
+            <p class="hint" data-page-node-id="5Jj0H1zgqe7wYKvaOO8Ziw">
+              怎么拿：github.com → 右上角头像 → Settings → Developer settings<br data-page-node-id="JBaOR4TIjcuIAO5jbbJaOf">
+              → Personal access tokens → Tokens (classic) → Generate new token<br data-page-node-id="4OAQcD33XnvYsFn0wmj6w5">
+              → 只勾 <b data-page-node-id="F42GtgZsxnLxBJM02axFiK">gist</b> 一项 → 生成后复制（关掉就看不到了）
             </p>
           </div>
-          <div class="row" style="margin-top:14px">
-            <button class="btn" onclick="Settings.enableGist()">开启同步</button>
-            <button class="btn ghost" onclick="Store.exportFile()">先导出备份</button>
+          <div class="row" style="margin-top:14px" data-page-node-id="GTLe5KkypPVgaKIl3Dkivb">
+            <button class="btn" onclick="Settings.enableGist()" data-page-node-id="Iz2hzaGpi3vxEEjqEcdQ8a">开启同步</button>
+            <button class="btn ghost" onclick="Store.exportFile()" data-page-node-id="Y3onyx4cssZIbiZO6cSePT">先导出备份</button>
           </div>
-          <p class="hint">建议先导出一份备份再开。</p>
+          <p class="hint" data-page-node-id="nTz2xY8Acud3jriD6RnBoB">建议先导出一份备份再开。</p>
         </div>
-        <div id="gistOn" style="display:none">
-          <p class="hint" style="margin-top:0">Gist：<b id="gistWho" class="mono"></b><br>上次同步：<span id="gistTime"></span></p>
-          <div class="row" style="margin-top:14px">
-            <button class="btn" onclick="GistSync.pull(true)">立即同步</button>
-            <button class="btn ghost" onclick="GistSync.copyId()">复制 Gist ID</button>
-            <button class="btn ghost" onclick="GistSync.disable()">关闭同步</button>
+        <div id="gistOn" style="display:none" data-page-node-id="urO8iqQDdEUe75yHwf8r1b">
+          <p class="hint" style="margin-top:0" data-page-node-id="F9i43X4dw2yn3EWs5YWvIR">Gist：<b id="gistWho" class="mono" data-page-node-id="RVfsrJkxnUNZmwc0vLOzG4"></b><br data-page-node-id="0zyptxA3yaQQPgdD1KV79Q">上次同步：<span id="gistTime" data-page-node-id="O89qLvSAS9wGGhD9wbPUyd"></span></p>
+          <div class="row" style="margin-top:14px" data-page-node-id="LGAFPZ6oRAHAcskpkkB1F5">
+            <button class="btn" onclick="GistSync.pull(true)" data-page-node-id="Gfr7lhCskswFr1IddpHEdz">立即同步</button>
+            <button class="btn ghost" onclick="GistSync.copyId()" data-page-node-id="oXDwwq4l3nGjdwqmp6Am6w">复制 Gist ID</button>
+            <button class="btn ghost" onclick="GistSync.disable()" data-page-node-id="yhh2pGGE9YHEvUnC8TnufT">关闭同步</button>
           </div>
-          <p class="hint">
+          <p class="hint" data-page-node-id="vLoGOrysXnpGW5HPgDsRgr">
             只在「打开时」和「切回前台时」拉一次，不会一直轮询。另一台设备改完，这边点「立即同步」就能看到。
           </p>
         </div>
@@ -474,33 +492,33 @@ select{appearance:none;-webkit-appearance:none}
       <!-- ==== 云端同步卡片 END ==== -->
 
       <!-- ==== 日志同步开关 START ==== -->
-      <div class="card wide" id="logSyncCard">
-        <h2>📝 工作日志同步</h2>
-        <p class="hint" style="margin-top:0">
-          日志默认<b>只留这台设备</b>——它经常夹带不想上云的内容。<br>
+      <div class="card wide" id="logSyncCard" data-page-node-id="ROOTkJIUS4TXucdP2ogyHH">
+        <h2 data-page-node-id="OxL3uN1vHSEb58c3uvaMBJ">📝 工作日志同步</h2>
+        <p class="hint" style="margin-top:0" data-page-node-id="0p2LAl53GDoWF4nBzDk9oE">
+          日志默认<b data-page-node-id="0w5HWAEC61hULDxOKj3pdZ">只留这台设备</b>——它经常夹带不想上云的内容。<br data-page-node-id="xyGZyOtXdQwjBIGscaBqm5">
           打开之后，日志会和待办一起存进你的私有 Gist，手机电脑都能看。
         </p>
-        <div class="row" style="margin-top:14px">
-          <button class="btn" id="logSyncBtn" onclick="Settings.toggleLogSync()"></button>
-          <span class="hint" id="logSyncInfo" style="margin:0"></span>
+        <div class="row" style="margin-top:14px" data-page-node-id="rkdtPx0kATQAGpmurjeWdB">
+          <button class="btn" id="logSyncBtn" onclick="Settings.toggleLogSync()" data-page-node-id="ZJzQNDzrw05Rrfjgcif51c"></button>
+          <span class="hint" id="logSyncInfo" style="margin:0" data-page-node-id="4eEa5yQRPa5DcLwZ3EbS17"></span>
         </div>
-        <p class="hint">
-          改这个只影响以后的同步，已经写过的内容一条都不会丢。<br>
+        <p class="hint" data-page-node-id="BrLORXrc3XMGT8j6dobD9f">
+          改这个只影响以后的同步，已经写过的内容一条都不会丢。<br data-page-node-id="my9QM5LKgoc0Ylxkt6ib95">
           建议两端设成一样：一端开一端关的话，关的那端推送时会把云端的日志覆盖掉。
         </p>
       </div>
       <!-- ==== 日志同步开关 END ==== -->
 
-      <div class="card">
-        <h2>⚠️ 危险操作</h2>
-        <button class="btn danger" onclick="Store.wipe()">清空所有数据</button>
-        <p class="hint">清空前请确认已经导出过备份，这个操作无法撤销。</p>
+      <div class="card" data-page-node-id="LPHC80WsFAEPkhV8krclvl">
+        <h2 data-page-node-id="4HO0MyHuGzYtatZB1YlbKK">⚠️ 危险操作</h2>
+        <button class="btn danger" onclick="Store.wipe()" data-page-node-id="GLOFYJHuL9JJTs2Rx4oZIU">清空所有数据</button>
+        <p class="hint" data-page-node-id="JsPrqVtpAhJPHHWDglSI8c">清空前请确认已经导出过备份，这个操作无法撤销。</p>
       </div>
 
-      <div class="card">
-        <p class="hint" style="margin:0;text-align:center">
-          Xpc每日任务<br>
-          <span style="opacity:.6">由 不一书个人工作台生成器 生成</span>
+      <div class="card" data-page-node-id="ctl8ab2cjJ4rAAO9o5sgXa">
+        <p class="hint" style="margin:0;text-align:center" data-page-node-id="sDlle4AFQQcycmv0udNzIp">
+          Xpc每日任务<br data-page-node-id="cGF4plDZxgNPgZ10i2b2XQ">
+          <span style="opacity:.6" data-page-node-id="ajDeQ4z1qKfraQF3glThxF">由 不一书个人工作台生成器 生成</span>
         </p>
       </div>
     </section>
@@ -509,7 +527,7 @@ select{appearance:none;-webkit-appearance:none}
   </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" data-page-node-id="luT6NrxGC1cy7RjS115Zsz"></div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -1250,6 +1268,17 @@ const Todo = {
     return `挂 ${hang} 天` + (late ? ` · 拖 ${late} 天` : '');
   },
 
+  /** 时间框里没值时，先填成"现在"——用户说默认当前时间 */
+  initTime(){
+    const el = document.getElementById('todoTime');
+    if (el && !el.value) el.value = Util.hm();
+  },
+  /** 加完一条，把时间重新推到"现在"，连着加下一条时不用手动改 */
+  resetTime(){
+    const el = document.getElementById('todoTime');
+    if (el) el.value = Util.hm();
+  },
+
   add(){
     const el = document.getElementById('todoText');
     const text = (el.value || '').trim();
@@ -1263,13 +1292,48 @@ const Todo = {
       createdAt: Date.now(),
       due: Util.today(),
       done: false,
-      doneAt: null
+      doneAt: null,
+      note: ''
     });
     el.value = '';
-    document.getElementById('todoTime').value = '';
+    this.resetTime();
     el.focus();
     this.render();
     if (typeof Today !== 'undefined') Today.render();
+  },
+
+  /* ── 备注：这条为什么没做完 ──
+     顺延多天的任务最需要它，所以今日页也用同一个 row()，备注跟着走。 */
+  toggleNote(id){
+    this._note = this._note === id ? null : id;
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  saveNote(id){
+    const el = document.getElementById('noteIn_' + id);
+    const v = (el && el.value ? el.value : '').trim();
+    Store.upsert('todo', { id, note: v, noteAt: Date.now() });
+    this._note = null;
+    UI.toast(v ? '记下了' : '备注已清空');
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  noteHtml(x){
+    const has = !!(x.note && x.note.trim());
+    if (this._note === x.id){
+      return `<div class="note-edit">
+        <textarea id="noteIn_${x.id}" placeholder="为什么没做完？比如：等材料 / 被临时会占了 / 忘了">${Util.esc(x.note || '')}</textarea>
+        <div class="row">
+          <button class="btn" onclick="Todo.saveNote('${x.id}')">记下</button>
+          <button class="btn ghost" onclick="Todo.toggleNote('${x.id}')">取消</button>
+        </div>
+      </div>`;
+    }
+    return has
+      ? `<div class="note-line" onclick="Todo.toggleNote('${x.id}')">💬 ${Util.esc(x.note)}</div>`
+      : '';
   },
 
   toggle(id){
@@ -1293,7 +1357,8 @@ const Todo = {
     const late = this.late(x);
     const over = !x.done && x.time && x.time <= Util.hm();
     const pri = x.pri || 2;
-    return `<div class="item ${x.done ? 'done' : ''}">
+    const hasNote = !!(x.note && x.note.trim());
+    return `<div class="item ${x.done ? 'done' : ''} ${hasNote ? 'has-note' : ''}">
       <span class="box" onclick="Todo.toggle('${x.id}')">${x.done ? '✓' : ''}</span>
       <span class="time">${x.time ? Util.esc(x.time) : ''}</span>
       <span class="grow">${Util.esc(x.text)}
@@ -1301,12 +1366,15 @@ const Todo = {
         ${(late && !x.done) ? `<span class="tag late">已拖 ${late} 天</span>` : ''}
         ${over ? '<span class="tag now">到点了</span>' : ''}
         ${x.done ? `<span class="tag span">${Util.esc(this.span(x))}</span>` : ''}
+        ${(late && !x.done && !hasNote) ? `<span class="tag late" style="cursor:pointer" onclick="Todo.toggleNote('${x.id}')">记一笔为什么没做</span>` : ''}
       </span>
+      <button class="note-btn" onclick="Todo.toggleNote('${x.id}')" title="${hasNote ? '改备注' : '记一笔为什么没做'}">💬</button>
       <button class="del" onclick="Todo.del('${x.id}')">✕</button>
-    </div>`;
+    </div>` + this.noteHtml(x);
   },
 
   render(){
+    this.initTime();
     const open = this.open().sort((a, b) => this.cmp(a, b));
     const done = this.all().filter(x => x.done)
       .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 20);
