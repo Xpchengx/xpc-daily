@@ -158,6 +158,17 @@ select{appearance:none;-webkit-appearance:none}
 .note-edit{margin:0 0 10px}
 .note-edit textarea{width:100%;min-height:66px;font-size:16px}
 .note-edit .row{margin-top:8px}
+/* 责任人筛选条 */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{
+  font-size:13px;padding:5px 11px;border-radius:999px;cursor:pointer;
+  background:#0d1117;border:1px solid var(--line);color:var(--text-dim)
+}
+.chip:active{border-color:var(--accent)}
+.chip.on{background:var(--sidebar-active);border-color:var(--accent);color:#fff}
+.chip b{font-weight:600;color:inherit}
+.tag.owner{background:#1f3a5f;color:#9ecbff;cursor:pointer}
+.tag.owner.me{background:#3d2f00;color:#f0c674}
 .box{
   width:22px;height:22px;flex-shrink:0;margin-top:3px;cursor:pointer;
   border:2px solid var(--accent);border-radius:6px;
@@ -325,8 +336,18 @@ select{appearance:none;-webkit-appearance:none}
           </select>
           <button class="btn" onclick="Todo.add()" data-page-node-id="AOoUBDKSgbwpWLAmZV8zwD">添加</button>
         </div>
+        <div class="row" style="margin-top:10px">
+          <input type="text" id="todoOwner" list="ownerList" placeholder="责任人（可留空）" style="max-width:200px" title="谁来推进这件事">
+          <datalist id="ownerList"></datalist>
+          <span class="hint" style="margin:0">填过的人会自动记住，下次直接选</span>
+        </div>
         <p class="hint" data-page-node-id="SSQal7Wnd1fphCQmBEeVsM">时间默认就是<b>现在</b>，点一下能改成别的（也可以清空，表示不挂时间）。<br>
           没做完的第二天会自动出现在「今天」，并标上拖了几天。每一条都能点 💬 记一笔<b>为什么没做</b>。</p>
+      </div>
+      <div class="card wide">
+        <h2>👤 责任人</h2>
+        <div class="chips" id="ownerBar"></div>
+        <p class="hint" style="margin:0">点一个人名就只看他的任务，点「全部」看所有人。名字后面的数字是还没完成的件数。</p>
       </div>
       <div class="card wide" data-page-node-id="HLswLCWjeuHEH6Dzc6SjNw">
         <h2 data-page-node-id="MRyvgbLoVfjBHWQUKjq672">📋 进行中</h2>
@@ -1285,10 +1306,13 @@ const Todo = {
     if (!text) return;
     const raw = (document.getElementById('todoTime').value || '').trim();
     const pri = parseInt(document.getElementById('todoPri').value, 10) || 2;
+    const ownerEl = document.getElementById('todoOwner');
+    const owner = ownerEl ? (ownerEl.value || '').trim() : '';
     Store.upsert('todo', {
       text,
       time: /^\d{1,2}:\d{2}$/.test(raw) ? raw : '',
       pri,
+      owner,
       createdAt: Date.now(),
       due: Util.today(),
       done: false,
@@ -1296,10 +1320,62 @@ const Todo = {
       note: ''
     });
     el.value = '';
+    /* 责任人故意保留：连续给同一个人录几条是常态，清空反而烦 */
     this.resetTime();
     el.focus();
     this.render();
     if (typeof Today !== 'undefined') Today.render();
+  },
+
+  /* ── 责任人：这件事该谁推进 ── */
+  owners(){
+    const m = new Map();
+    for (const x of this.all()){
+      const n = (x.owner || '').trim();
+      if (!n) continue;
+      const e = m.get(n) || { name:n, open:0, all:0 };
+      e.all++;
+      if (!x.done) e.open++;
+      m.set(n, e);
+    }
+    return [...m.values()].sort((a, b) => (b.open - a.open) || a.name.localeCompare(b.name, 'zh'));
+  },
+
+  /** 筛选用的人名清单存成索引，避免把中文名拼进 onclick 里出转义问题 */
+  renderOwnerBar(){
+    const bar = document.getElementById('ownerBar');
+    if (!bar) return;
+    const keys = [''], labels = ['全部'], counts = [this.open().length];
+    const noOwner = this.all().filter(x => !(x.owner || '').trim() && !x.done).length;
+    if (noOwner){ keys.push('__none__'); labels.push('未分配'); counts.push(noOwner); }
+    for (const o of this.owners()){ keys.push(o.name); labels.push(o.name); counts.push(o.open); }
+    this._filterKeys = keys;
+    bar.innerHTML = keys.map((k, i) =>
+      `<span class="chip ${this._filter === k ? 'on' : ''}" onclick="Todo.setFilterByIndex(${i})">${Util.esc(labels[i])} <b>${counts[i]}</b></span>`
+    ).join('');
+
+    const dl = document.getElementById('ownerList');
+    if (dl) dl.innerHTML = this.owners().map(o => `<option value="${Util.esc(o.name)}"></option>`).join('');
+  },
+
+  setFilterByIndex(i){
+    this._filter = i <= 0 ? '' : ((this._filterKeys || [])[i] || '');
+    this.render();
+  },
+
+  filterByOwner(el){
+    const n = (el && el.getAttribute ? el.getAttribute('data-owner') : '') || '';
+    this._filter = (this._filter === n) ? '' : n;
+    this.render();
+    /* 在「今天」页点的 👤，直接跳到待办页看筛选结果，否则点了没反应 */
+    if (typeof App !== 'undefined' && Store.get('_lastPage') !== 'todo') App.go('todo');
+  },
+
+  matchFilter(x){
+    const f = this._filter;
+    if (!f) return true;
+    const own = (x.owner || '').trim();
+    return f === '__none__' ? !own : own === f;
   },
 
   /* ── 备注：这条为什么没做完 ──
@@ -1310,8 +1386,13 @@ const Todo = {
     if (typeof Today !== 'undefined') Today.render();
   },
 
-  saveNote(id){
-    const el = document.getElementById('noteIn_' + id);
+  /** ⚠️ 同一条待办会在「今天」和「待办」两页各渲染一次（共用 row），
+      所以页面上可能出现两个备注框。不能用 getElementById 找——
+      它只返回文档里第一个（多半是今日页那个空框），会把内容存成空。
+      改成从点击的那个按钮往上找它自己所在的框。 */
+  saveNote(id, btn){
+    const box = btn && btn.closest ? btn.closest('.note-edit') : null;
+    const el = box ? box.querySelector('textarea') : null;
     const v = (el && el.value ? el.value : '').trim();
     Store.upsert('todo', { id, note: v, noteAt: Date.now() });
     this._note = null;
@@ -1324,9 +1405,9 @@ const Todo = {
     const has = !!(x.note && x.note.trim());
     if (this._note === x.id){
       return `<div class="note-edit">
-        <textarea id="noteIn_${x.id}" placeholder="为什么没做完？比如：等材料 / 被临时会占了 / 忘了">${Util.esc(x.note || '')}</textarea>
+        <textarea class="note-in" placeholder="为什么没做完？比如：等材料 / 被临时会占了 / 忘了">${Util.esc(x.note || '')}</textarea>
         <div class="row">
-          <button class="btn" onclick="Todo.saveNote('${x.id}')">记下</button>
+          <button class="btn" onclick="Todo.saveNote('${x.id}', this)">记下</button>
           <button class="btn ghost" onclick="Todo.toggleNote('${x.id}')">取消</button>
         </div>
       </div>`;
@@ -1363,6 +1444,7 @@ const Todo = {
       <span class="time">${x.time ? Util.esc(x.time) : ''}</span>
       <span class="grow">${Util.esc(x.text)}
         <span class="tag p${pri}">P${pri}</span>
+        ${x.owner ? `<span class="tag owner" data-owner="${Util.esc(x.owner)}" onclick="Todo.filterByOwner(this)" title="只看这个人的">👤 ${Util.esc(x.owner)}</span>` : ''}
         ${(late && !x.done) ? `<span class="tag late">已拖 ${late} 天</span>` : ''}
         ${over ? '<span class="tag now">到点了</span>' : ''}
         ${x.done ? `<span class="tag span">${Util.esc(this.span(x))}</span>` : ''}
@@ -1375,17 +1457,19 @@ const Todo = {
 
   render(){
     this.initTime();
-    const open = this.open().sort((a, b) => this.cmp(a, b));
-    const done = this.all().filter(x => x.done)
+    this.renderOwnerBar();
+    const open = this.open().filter(x => this.matchFilter(x)).sort((a, b) => this.cmp(a, b));
+    const done = this.all().filter(x => x.done && this.matchFilter(x))
       .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 20);
 
+    const who = this._filter === '__none__' ? '未分配的' : (this._filter ? `「${Util.esc(this._filter)}」名下` : '');
     document.getElementById('todoOpen').innerHTML = open.length
       ? open.map(x => this.row(x)).join('')
-      : '<div class="empty">没有进行中的待办</div>';
+      : `<div class="empty">${who ? who + '没有进行中的待办' : '没有进行中的待办'}</div>`;
 
     document.getElementById('todoDone').innerHTML = done.length
       ? done.map(x => this.row(x)).join('')
-      : '<div class="empty">还没有完成记录</div>';
+      : `<div class="empty">${who ? who + '还没有完成记录' : '还没有完成记录'}</div>`;
 
     const el = document.getElementById('todoStat');
     if (el) el.textContent = this.stat();
