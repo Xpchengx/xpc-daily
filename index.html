@@ -108,6 +108,14 @@ body{
   box-shadow:var(--shadow);padding:var(--pad);
 }
 .card h2{font-size:17px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+/* ── 卡片折叠：点标题栏收起/展开 ── */
+.card > h2{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.card > h2:active{opacity:.7}
+.fold-i{margin-left:auto;font-style:normal;font-size:11px;color:var(--text-dim);
+  flex-shrink:0;transition:transform .15s var(--ease)}
+.card.folded > h2 .fold-i{transform:rotate(-90deg)}
+.card.folded > :not(h2){display:none}
+.card.folded > h2{margin-bottom:0}
 .hint{font-size:var(--fs-meta);color:var(--text-dim);margin-top:8px;line-height:1.65}
 .empty{font-size:var(--fs-meta);color:var(--text-dim);text-align:center;padding:22px 0}
 
@@ -382,15 +390,19 @@ select{appearance:none;-webkit-appearance:none}
       <div class="page-title" data-page-node-id="qmdYV3VVi8kV6zRc04rgLi">今天</div>
       <div class="page-sub" id="todaySub" data-page-node-id="P6YNbipbMUXLk99yWsXRS9"></div>
       <div id="todayWarn" data-page-node-id="FN5iqA6u4lclOiLFplawb0"></div>
-      <div class="card wide" data-page-node-id="htuNEpbGDBYJEAca2ApKJh">
+      <div data-fold="c1" class="card wide" data-page-node-id="htuNEpbGDBYJEAca2ApKJh">
         <div class="hero" id="todayHero" data-page-node-id="Gb24UkJibCkzsZRxoEtcrJ">0<span class="unit" data-page-node-id="CEHz3INRYC7aspLoCJSRe9">件还没做</span></div>
         <p class="hint" id="todayHint" data-page-node-id="tzPZWy14vL92Bx3UDuQdVq"></p>
       </div>
-      <div class="card wide" data-page-node-id="cyAbpZnNHPF7yUNRuMOcmZ">
+      <div data-fold="c2" class="card wide" data-page-node-id="cyAbpZnNHPF7yUNRuMOcmZ">
         <h2 data-page-node-id="lXbWokkTFeAxNUkBhXHGUb">⏰ 待办 · 今天该做的</h2>
         <div id="todayList" data-page-node-id="cxM4q1kABOJh3Hsi1HK0HD"></div>
       </div>
-      <div class="card wide" data-page-node-id="Jr3YvK3frdhCTAuooPwT2k">
+      <div data-fold="c23" class="card wide">
+        <h2>✅ 已办 · 今天搞定的</h2>
+        <div id="todayDone"></div>
+      </div>
+      <div data-fold="c3" class="card wide" data-page-node-id="Jr3YvK3frdhCTAuooPwT2k">
         <h2 data-page-node-id="J6c0D4YAtoEJarWv3NWei8">📅 固定行程</h2>
         <div id="todayPlan" data-page-node-id="Xfc2GfLHLAd9KJAIokWhC3"></div>
       </div>
@@ -401,7 +413,7 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-todo" data-page-node-id="hH1dW8TWGacmvnFvDJivCG">
       <div class="page-title" data-page-node-id="88DeCY6IRScH3JjtPRItrh">待办</div>
       <div class="page-sub" data-page-node-id="O1UHV0pxmxCIBfgBIsUSmd">挂时间、排优先级，没做完的自动顺延</div>
-      <div class="card wide" data-page-node-id="C0lr597ZZ1MFPuIdlyS6h0">
+      <div data-fold="c4" class="card wide" data-page-node-id="C0lr597ZZ1MFPuIdlyS6h0">
         <h2 data-page-node-id="EQxylUY9wzKQfhHliC9Vya">✅ 加一条</h2>
         <div class="row" data-page-node-id="z2JPrfN6PE7dtEZr2lSmQK">
           <input type="text" id="todoText" placeholder="要做的事，比如：整理客户 A 需求文档" data-page-node-id="a97rbNO6EG8olY7JKSFTFb">
@@ -425,16 +437,16 @@ select{appearance:none;-webkit-appearance:none}
         <p class="hint" data-page-node-id="SSQal7Wnd1fphCQmBEeVsM">时间默认就是<b>现在</b>，点一下能改成别的（也可以清空，表示不挂时间）。<br>
           没做完的第二天会自动出现在「今天」，并标上拖了几天。每一条都能点 💬 记一笔<b>为什么没做</b>。</p>
       </div>
-      <div class="card wide">
+      <div data-fold="c5" class="card wide">
         <h2>👤 责任人</h2>
         <div class="chips" id="ownerBar"></div>
         <p class="hint" style="margin:0">点一个人名就只看他的任务，点「全部」看所有人。名字后面的数字是还没完成的件数。</p>
       </div>
-      <div class="card wide" data-page-node-id="HLswLCWjeuHEH6Dzc6SjNw">
+      <div data-fold="c6" class="card wide" data-page-node-id="HLswLCWjeuHEH6Dzc6SjNw">
         <h2 data-page-node-id="MRyvgbLoVfjBHWQUKjq672">📋 进行中</h2>
         <div id="todoOpen" data-page-node-id="H7OY9sJLZ3AR80IXcYCuDK"></div>
       </div>
-      <div class="card wide" data-page-node-id="sojPp9uNBMdMV3BL9dWjbM">
+      <div data-fold="c7" class="card wide" data-page-node-id="sojPp9uNBMdMV3BL9dWjbM">
         <h2 data-page-node-id="zDdfZuF9JcjiG0au8Mua4t">🎉 已完成</h2>
         <div id="todoDone" data-page-node-id="IiB04DDCbalerkr27jC0cO"></div>
         <p class="hint" id="todoStat" data-page-node-id="hNG5uhzGDgD0ZKtqcqyjoF"></p>
@@ -446,7 +458,7 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-plan" data-page-node-id="oRTKICBdFTCDjpky3t7d9e">
       <div class="page-title" data-page-node-id="dbDDTDNm4YMTugPfQhnjcG">固定行程</div>
       <div class="page-sub" data-page-node-id="EW8zr4P1CO6gHNxnMdUHn8">每天都要做的，写一次就够</div>
-      <div class="card wide" data-page-node-id="3AxDTDplGblyohXYomZBdi">
+      <div data-fold="c8" class="card wide" data-page-node-id="3AxDTDplGblyohXYomZBdi">
         <h2 data-page-node-id="AxpgCMrH7Qdl7n0GTCZcNS">➕ 加一项</h2>
         <div class="row" data-page-node-id="5ebjdwuiEaGY3rSMIo1Vh5">
           <input type="text" id="planDate" readonly inputmode="none" placeholder="日期（留空=每天）"
@@ -463,7 +475,7 @@ select{appearance:none;-webkit-appearance:none}
         <p class="hint" data-page-node-id="AaH2ujB5cc1D6uV8PFOvGU"><b>日期留空</b> = 每天重复，勾完第二天自动重置，不用手动清。<br>
           <b>选了日期</b> = 只在那天出现（一次性安排，比如 9/20 的客户评审）。过了那天的会标灰，不会自动删。</p>
       </div>
-      <div class="card wide" data-page-node-id="SvtIMXXb2JYW45lt3Rblvk">
+      <div data-fold="c9" class="card wide" data-page-node-id="SvtIMXXb2JYW45lt3Rblvk">
         <h2 data-page-node-id="b5dfzpOV91NpCbAn85sUHI">📅 全部行程</h2>
         <div class="pseg">
           <span class="chip" id="planViewList" onclick="Plan.setView('list')">列表</span>
@@ -479,13 +491,13 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-goal" data-page-node-id="Vwuh22gIz9KimrxyflM6Fr">
       <div class="page-title" data-page-node-id="rETggqJx1CG4A9b1MhEQRM">年度目标</div>
       <div class="page-sub" id="goalSub" data-page-node-id="UqQRGfD1xVRl8BsXTyNzCx"></div>
-      <div class="card wide" data-page-node-id="luuvZwAiOyFPCCFrphViEs">
+      <div data-fold="c10" class="card wide" data-page-node-id="luuvZwAiOyFPCCFrphViEs">
         <div class="hero" id="goalDays" data-page-node-id="NpAwMsjQESLYapjtOVbsEW">0<span class="unit" data-page-node-id="XJ7lCuWTKQgEc8JL5fbf6L">天</span></div>
         <p class="hint" data-page-node-id="bWHKvJLNnTxHMkkyMNXMnW">距今年结束</p>
         <div class="bar" data-page-node-id="ldx4IYmfqBT8vV6VVjVKTh"><i id="goalBar" style="width:0%" data-page-node-id="IBtT6rs8CkQpBILfzSVeKC"></i></div>
         <div class="stat" data-page-node-id="mNowfLKhw6j2smOcGJTmDN"><span id="goalPct" data-page-node-id="E6Jij7oQhir4UPCgDuay0F"></span><span id="goalCnt" data-page-node-id="xQjsWxaEK1Lixc4R5CLmLs"></span></div>
       </div>
-      <div class="card wide" data-page-node-id="hLvCA7xAy9nUNFPDHatoYW">
+      <div data-fold="c11" class="card wide" data-page-node-id="hLvCA7xAy9nUNFPDHatoYW">
         <h2 data-page-node-id="QkPR0fWAT76wEZZMySTnvf">🎯 今年的目标</h2>
         <div class="row" data-page-node-id="ow66lOmBpA0QGZfhTEg2Yk">
           <input type="text" id="goalText" placeholder="比如：拿下 A 客户" data-page-node-id="xAOjAzhOzKm7wae8acCZo6">
@@ -500,7 +512,7 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-log" data-page-node-id="9pOx5ZFHVagzOR6cTbUTBZ">
       <div class="page-title" data-page-node-id="8wOuJZKoIgyjiW4xYONjPV">工作日志</div>
       <div class="page-sub" id="logSub" data-page-node-id="OujxIRvOtzy38Otfxch0NA"></div>
-      <div class="card wide" data-page-node-id="pD4RGXQCAXiecln3f7z8me">
+      <div data-fold="c12" class="card wide" data-page-node-id="pD4RGXQCAXiecln3f7z8me">
         <h2 data-page-node-id="QOlWG6XUx0uaKUt5vZ7Kxc">📝 <span id="logDate" data-page-node-id="CL0jc3CtQMUezF9FwKHUYj"></span>
           <button class="btn ghost" id="logSyncMini" style="float:right;font-size:12px;padding:4px 10px;margin:0"
                   onclick="Settings.toggleLogSync()" data-page-node-id="2epSKVYbi71fK9lPJ7pjNQ"></button>
@@ -508,7 +520,7 @@ select{appearance:none;-webkit-appearance:none}
         <textarea id="logText" placeholder="今天做了什么、卡在哪、明天先干什么" oninput="Log.later()"></textarea>
         <p class="hint" id="logHint" data-page-node-id="XUQVUgCK4ETm3WX8iigfgB"></p>
       </div>
-      <div class="card wide" data-page-node-id="uSWSWjQMRCZWQ1OeDd5lMN">
+      <div data-fold="c13" class="card wide" data-page-node-id="uSWSWjQMRCZWQ1OeDd5lMN">
         <h2 data-page-node-id="P58eYpj9rS0o4zmQYSW4kL">📚 往日</h2>
         <div id="logList" data-page-node-id="T6E3XGYzB0333u968hRqk2"></div>
       </div>
@@ -519,7 +531,7 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-docs" data-page-node-id="8uDqSjIs5i2PiDzO1ClZuD">
       <div class="page-title" data-page-node-id="tkM3QvcJ3jw7CaDrsCiHIc">云文档</div>
       <div class="page-sub" data-page-node-id="GVW0y2lReYVL2Io3YyuygS">常用文档入口，点一下直达</div>
-      <div class="card wide" data-page-node-id="IEQdKCTgeIFFKhg5Ed3O7R">
+      <div data-fold="c14" class="card wide" data-page-node-id="IEQdKCTgeIFFKhg5Ed3O7R">
         <h2 data-page-node-id="DLIjf77ocAh7xXBRWKMnpx">➕ 加一个入口</h2>
         <div class="row" data-page-node-id="yaWO8TALiW6Js0rRoddBNk">
           <input type="text" id="docName" placeholder="名字，比如：项目周报" data-page-node-id="Oh6dfP4LhHnR4XY8wlHp94">
@@ -530,7 +542,7 @@ select{appearance:none;-webkit-appearance:none}
         </div>
         <p class="hint" data-page-node-id="woLAwrBFGkLS2HnJBInpFY">把 WPS / 金山文档的分享链接粘进来，以后从这里点开，不用每次翻聊天记录。</p>
       </div>
-      <div class="card wide" data-page-node-id="PWewhFotGWhrJJFwZeXfpk">
+      <div data-fold="c15" class="card wide" data-page-node-id="PWewhFotGWhrJJFwZeXfpk">
         <h2 data-page-node-id="lXHihPg9DuEn2mX1mCoCbd">📌 我的入口</h2>
         <div id="docList" data-page-node-id="xOLp3qT2oyVc2k8WT4krwo"></div>
       </div>
@@ -541,7 +553,7 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-recap" data-page-node-id="GDE4AgGWXPYPm1pmj1ps9Z">
       <div class="page-title" data-page-node-id="sQpNgMsOezVHhdMR9fesMU">这一周</div>
       <div class="page-sub" data-page-node-id="52gz6CW5FmusOY9xUjCyEK">周日晚上看一眼，比任何提醒都管用</div>
-      <div class="card wide" data-page-node-id="XrC270aBD755D0LHSLBFbl">
+      <div data-fold="c16" class="card wide" data-page-node-id="XrC270aBD755D0LHSLBFbl">
         <div id="recapBody" data-page-node-id="ohCDeDISNRNzkuh2CzagsH"></div>
         <div class="row" style="margin-top:18px" data-page-node-id="xaF13nxgFfmaQAR20gfzNk">
           <button class="btn" onclick="Recap.makeCard()" data-page-node-id="ZkGC9Ey0IxpTpBXphsrw3W">生成图卡</button>
@@ -555,7 +567,7 @@ select{appearance:none;-webkit-appearance:none}
     <section class="page" id="page-settings" data-page-node-id="GQBHVTXVr2z9OLIRtly70q">
       <div class="page-title" data-page-node-id="cxtVdUGFaFKUMfTd5p9yV1">设置</div>
 
-      <div class="card" data-page-node-id="vqAn1kGuJmQZY0RAIOtHc0">
+      <div data-fold="c17" class="card" data-page-node-id="vqAn1kGuJmQZY0RAIOtHc0">
         <h2 data-page-node-id="hzZ81BLMgizRpHDkXHSe92">💾 数据备份</h2>
         <p class="hint" style="margin-top:0;margin-bottom:12px" data-page-node-id="DiqgG55g4G9O07c01YIePH">
           你的数据主要存在这台设备的浏览器里，不在任何服务器上。<br data-page-node-id="DcL2mfZFEtugjJWPQQIAcb">
@@ -570,8 +582,8 @@ select{appearance:none;-webkit-appearance:none}
       </div>
 
       <!-- ==== 云端同步卡片 START ==== -->
-      <div class="card wide" id="gistCard" data-page-node-id="HOHn1eb4yOqqLl5q4ga5QM">
-        <h2 data-page-node-id="xgHq7WueETU2n4fRcf1icV">🔄 双端同步 <span class="hint" id="gistState" style="margin:0 0 0 auto;font-size:var(--fs-meta)" data-page-node-id="Iuq9SWwFw7V9nrRA3AdzRm"></span></h2>
+      <div data-fold="c18" class="card wide" id="gistCard" data-page-node-id="HOHn1eb4yOqqLl5q4ga5QM">
+        <h2 data-page-node-id="xgHq7WueETU2n4fRcf1icV">🔄 双端同步 <span class="hint" id="gistState" style="margin:0;font-size:var(--fs-meta)" data-page-node-id="Iuq9SWwFw7V9nrRA3AdzRm"></span></h2>
         <div id="gistOff" data-page-node-id="wowjmdZDG61YUBhK9HCAjB">
           <p class="hint" style="margin-top:0" data-page-node-id="IaLyEctfuzCHR9tw5LtEnI">
             数据存在一个<b data-page-node-id="zRgIuG6rcuL7d93uUoxGAn">私有 Gist</b> 里，只有你的 GitHub 账号能看到，走 GitHub 官方接口，不经第三方服务器。<br data-page-node-id="t55LaRpAmoCf0TB5k8t2Vu">
@@ -607,7 +619,7 @@ select{appearance:none;-webkit-appearance:none}
       <!-- ==== 云端同步卡片 END ==== -->
 
       <!-- ==== 日志同步开关 START ==== -->
-      <div class="card wide" id="logSyncCard" data-page-node-id="ROOTkJIUS4TXucdP2ogyHH">
+      <div data-fold="c19" class="card wide" id="logSyncCard" data-page-node-id="ROOTkJIUS4TXucdP2ogyHH">
         <h2 data-page-node-id="OxL3uN1vHSEb58c3uvaMBJ">📝 工作日志同步</h2>
         <p class="hint" style="margin-top:0" data-page-node-id="0p2LAl53GDoWF4nBzDk9oE">
           日志默认<b data-page-node-id="0w5HWAEC61hULDxOKj3pdZ">只留这台设备</b>——它经常夹带不想上云的内容。<br data-page-node-id="xyGZyOtXdQwjBIGscaBqm5">
@@ -625,7 +637,7 @@ select{appearance:none;-webkit-appearance:none}
       <!-- ==== 日志同步开关 END ==== -->
 
       <!-- ==== 震动反馈开关 START ==== -->
-      <div class="card wide" id="hapticCard">
+      <div data-fold="c20" class="card wide" id="hapticCard">
         <h2>📳 震动反馈</h2>
         <p class="hint" style="margin-top:0">
           滚时间/日期滚轮时，每过一格手机轻震一下，手感接近系统控件。<br>
@@ -640,13 +652,27 @@ select{appearance:none;-webkit-appearance:none}
       </div>
       <!-- ==== 震动反馈开关 END ==== -->
 
-      <div class="card" data-page-node-id="LPHC80WsFAEPkhV8krclvl">
+      <!-- ==== 卡片折叠管理 START ==== -->
+      <div class="card wide" data-fold="c24">
+        <h2>🗂 卡片折叠</h2>
+        <p class="hint" style="margin-top:0">
+          每张卡片的标题栏都可以点一下收起/展开，收起来的只剩标题，页面会更短。<br>
+          折叠状态会记住，也会同步到另一端。
+        </p>
+        <div class="row" style="margin-top:14px">
+          <button class="btn ghost" onclick="Fold.all(true)">全部展开</button>
+          <button class="btn ghost" onclick="Fold.all(false)">全部收起</button>
+        </div>
+      </div>
+      <!-- ==== 卡片折叠管理 END ==== -->
+
+      <div data-fold="c21" class="card" data-page-node-id="LPHC80WsFAEPkhV8krclvl">
         <h2 data-page-node-id="4HO0MyHuGzYtatZB1YlbKK">⚠️ 危险操作</h2>
         <button class="btn danger" onclick="Store.wipe()" data-page-node-id="GLOFYJHuL9JJTs2Rx4oZIU">清空所有数据</button>
         <p class="hint" data-page-node-id="JsPrqVtpAhJPHHWDglSI8c">清空前请确认已经导出过备份，这个操作无法撤销。</p>
       </div>
 
-      <div class="card" data-page-node-id="ctl8ab2cjJ4rAAO9o5sgXa">
+      <div data-fold="c22" class="card" data-page-node-id="ctl8ab2cjJ4rAAO9o5sgXa">
         <p class="hint" style="margin:0;text-align:center" data-page-node-id="sDlle4AFQQcycmv0udNzIp">
           Xpc每日任务<br data-page-node-id="cGF4plDZxgNPgZ10i2b2XQ">
           <span style="opacity:.6" data-page-node-id="ajDeQ4z1qKfraQF3glThxF">由 不一书个人工作台生成器 生成</span>
@@ -1527,6 +1553,66 @@ const Picker = {
 /* ==== 功能：选择器 END ==== */
 
 
+/* ==== 功能：卡片折叠 START ====
+   每张卡片在 HTML 上都写死了 data-fold="cN" —— **编号不要重排**，
+   否则已经存好的折叠状态会串到别的卡片上。新增卡片用新编号（现在用到 c23）。
+   状态存一个 key `fold`（对象），跟着设置一起同步到另一端。 */
+const Fold = {
+  KEY: 'fold',
+
+  cards(){ return [...document.querySelectorAll('.card[data-fold]')]; },
+  state(){ return Store.get(this.KEY) || {}; },
+  /** 没记录过的一律算展开 —— 老用户升级上来不会发现自己页面少了东西 */
+  open(k){ const s = this.state(); return !(k in s) || s[k] !== '0'; },
+
+  toggle(k){
+    const s = this.state();
+    s[k] = this.open(k) ? '0' : '1';
+    Store.set(this.KEY, s);
+    Haptics.tick(10);
+    this.apply();
+  },
+
+  all(open){
+    const s = {};
+    for (const c of this.cards()) s[c.getAttribute('data-fold')] = open ? '1' : '0';
+    Store.set(this.KEY, s);
+    this.apply();
+  },
+
+  apply(){
+    for (const c of this.cards()){
+      const k = c.getAttribute('data-fold');
+      c.classList.toggle('folded', !this.open(k));
+      const h = c.querySelector('h2');
+      if (h && !h.querySelector('.fold-i')){
+        const i = document.createElement('i');
+        i.className = 'fold-i';
+        i.textContent = '▾';
+        h.appendChild(i);
+      }
+    }
+  },
+
+  /** 事件委托：不用给 20 多个 h2 逐个挂 onclick */
+  bind(){
+    document.addEventListener('click', e => {
+      const t = e.target;
+      if (!t || !t.closest) return;
+      /* h2 里可能有按钮（比如日志页的同步开关）：点按钮只干它自己的活，别顺手折叠 */
+      if (t.closest('button, a, input, textarea, select, .fold-keep')) return;
+      const h = t.closest('h2');
+      if (!h) return;
+      const card = h.parentElement;
+      if (!card || !card.classList.contains('card')) return;
+      const k = card.getAttribute('data-fold');
+      if (k) this.toggle(k);
+    });
+  }
+};
+/* ==== 功能：卡片折叠 END ==== */
+
+
 /* ═══════════════════════════════════════════════════════════
    App · 路由与启动
    ═══════════════════════════════════════════════════════════ */
@@ -1561,6 +1647,9 @@ const App = {
 
     const last = Store.get('_lastPage');
     this.go(this.routes.some(r => r.id === last) ? last : this.routes[0].id);
+
+    Fold.bind();
+    Fold.apply();
 
     this.checkBackup();
     GistSync.init();
@@ -1847,10 +1936,12 @@ const Today = {
     document.getElementById('todayHero').innerHTML =
       `${total}<span class="unit">件还没做</span>`;
 
-    const doneToday = Store.list('todo')
-      .filter(x => x.done && x.doneAt && Util.dateOf(new Date(x.doneAt)) === Util.today()).length;
+    /* 已办：今天勾掉的（按 doneAt 算，不管它原本是哪天的任务） */
+    const doneList = Store.list('todo')
+      .filter(x => x.done && x.doneAt && Util.dateOf(new Date(x.doneAt)) === Util.today())
+      .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
     document.getElementById('todayHint').textContent =
-      doneToday ? `今天已经搞定 ${doneToday} 件` : '还没有完成的，先挑一件最要紧的';
+      doneList.length ? `今天已经搞定 ${doneList.length} 件` : '还没有完成的，先挑一件最要紧的';
 
     const lateN = list.filter(x => Todo.late(x) > 0).length;
     const nowN  = list.filter(x => x.time && x.time <= Util.hm()).length;
@@ -1864,6 +1955,14 @@ const Today = {
     document.getElementById('todayList').innerHTML = list.length
       ? list.map(x => Todo.row(x)).join('')
       : '<div class="empty">今天没有待办，清净</div>';
+
+    /* 已办单独一张卡：勾错了点一下方框就能退回来，不用跑去待办页找 */
+    const doneBox = document.getElementById('todayDone');
+    if (doneBox){
+      doneBox.innerHTML = doneList.length
+        ? doneList.map(x => Todo.row(x)).join('')
+        : '<div class="empty">今天还没搞定一件，先挑最要紧的开个头</div>';
+    }
 
     document.getElementById('todayPlan').innerHTML = plan.length
       ? plan.map(p => Plan.row(p, doneIds.includes(p.id))).join('')
