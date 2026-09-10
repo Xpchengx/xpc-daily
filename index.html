@@ -168,6 +168,8 @@ select{appearance:none;-webkit-appearance:none}
 .chip.on{background:var(--sidebar-active);border-color:var(--accent);color:#fff}
 .chip b{font-weight:600;color:inherit}
 .tag.owner{background:#1f3a5f;color:#9ecbff;cursor:pointer}
+.tag.date{background:#22304a;color:#a5b8d4}
+.tag.date.past{opacity:.5}
 .tag.owner.me{background:#3d2f00;color:#f0c674}
 .box{
   width:22px;height:22px;flex-shrink:0;margin-top:3px;cursor:pointer;
@@ -368,14 +370,20 @@ select{appearance:none;-webkit-appearance:none}
       <div class="card wide" data-page-node-id="3AxDTDplGblyohXYomZBdi">
         <h2 data-page-node-id="AxpgCMrH7Qdl7n0GTCZcNS">➕ 加一项</h2>
         <div class="row" data-page-node-id="5ebjdwuiEaGY3rSMIo1Vh5">
-          <input type="text" id="planTime" placeholder="09:00" style="max-width:110px" data-page-node-id="fXpsn7GQHdn9cJJBkdxHVN">
+          <input type="date" id="planDate" style="max-width:160px" title="留空 = 每天重复；选了日期 = 只在那天出现">
+          <input type="time" id="planTime" style="max-width:130px" title="可留空">
           <input type="text" id="planText" placeholder="部门早会" data-page-node-id="DiICjZF85N6qeowVUZxTqs">
           <button class="btn" onclick="Plan.add()" data-page-node-id="uYTDQGhqFVECYhqjLkkvVM">添加</button>
         </div>
-        <p class="hint" data-page-node-id="AaH2ujB5cc1D6uV8PFOvGU">这些每天自动生成。勾完第二天自动重置，不用手动清。</p>
+        <div class="row" style="margin-top:10px">
+          <input type="text" id="planOwner" list="planOwnerList" placeholder="责任人（可留空）" style="max-width:200px">
+          <datalist id="planOwnerList"></datalist>
+        </div>
+        <p class="hint" data-page-node-id="AaH2ujB5cc1D6uV8PFOvGU"><b>日期留空</b> = 每天重复，勾完第二天自动重置，不用手动清。<br>
+          <b>选了日期</b> = 只在那天出现（一次性安排，比如 9/20 的客户评审）。过了那天的会标灰，不会自动删。</p>
       </div>
       <div class="card wide" data-page-node-id="SvtIMXXb2JYW45lt3Rblvk">
-        <h2 data-page-node-id="b5dfzpOV91NpCbAn85sUHI">📅 每天要做</h2>
+        <h2 data-page-node-id="b5dfzpOV91NpCbAn85sUHI">📅 全部行程</h2>
         <div id="planList" data-page-node-id="bo7u8hHDE3KOHFAg6oZO7C"></div>
       </div>
     </section>
@@ -1493,7 +1501,7 @@ const Todo = {
 const Today = {
   render(){
     const list = this.dueSorted();
-    const plan = Plan.all();
+    const plan = Plan.forToday();      // 只算今天该出现的：每天重复的 + 日期正好今天的
     const doneIds = Plan.doneIds();
     const planLeft = plan.filter(p => !doneIds.includes(p.id)).length;
     const total = list.length + planLeft;
@@ -1540,7 +1548,28 @@ const Today = {
    固定行程：模板长期存，完成状态按天存（Store.listDaily），
    所以第二天打开自动是未勾选，不用手动清。 */
 const Plan = {
-  all(){ return Store.list('plan', (a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')); },
+  /** 排序：每天重复的排最前，然后按日期，同日期内按时间 */
+  all(){
+    return Store.list('plan', (a, b) => {
+      const ad = a.date || '', bd = b.date || '';
+      if (!ad !== !bd) return ad ? 1 : -1;                 // 有日期的排后面
+      if (ad !== bd) return ad < bd ? -1 : 1;
+      return (a.time || '99:99').localeCompare(b.time || '99:99');
+    });
+  },
+
+  /** 今天该出现的：没指定日期的（每天重复）+ 日期正好是今天的 */
+  forToday(){
+    const t = Util.today();
+    return this.all().filter(p => !p.date || p.date === t);
+  },
+
+  owners(){
+    const s = new Set();
+    for (const p of this.all()){ const n = (p.owner || '').trim(); if (n) s.add(n); }
+    return [...s].sort((a, b) => a.localeCompare(b, 'zh'));
+  },
+
   doneIds(){ return Store.listDaily('planDone').map(x => x.id); },
 
   toggle(id){
@@ -1553,11 +1582,22 @@ const Plan = {
   add(){
     const tEl = document.getElementById('planTime');
     const xEl = document.getElementById('planText');
+    const dEl = document.getElementById('planDate');
+    const oEl = document.getElementById('planOwner');
     const text = (xEl.value || '').trim();
     if (!text) return;
     const raw = (tEl.value || '').trim();
-    Store.upsert('plan', { text, time: /^\d{1,2}:\d{2}$/.test(raw) ? raw : '' });
+    const date = dEl ? (dEl.value || '').trim() : '';
+    const owner = oEl ? (oEl.value || '').trim() : '';
+    Store.upsert('plan', {
+      text,
+      time: /^\d{1,2}:\d{2}$/.test(raw) ? raw : '',
+      date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '',
+      owner
+    });
     tEl.value = ''; xEl.value = '';
+    /* 日期清空（一次性安排一般只加一条）；责任人保留，方便连着给同一个人排几项 */
+    if (dEl) dEl.value = '';
     this.render();
     if (typeof Today !== 'undefined') Today.render();
   },
@@ -1570,10 +1610,18 @@ const Plan = {
   },
 
   row(p, done){
+    const t = Util.today();
+    const past = p.date && p.date < t;
+    const label = p.date
+      ? (p.date === t ? '今天' : Util.esc(p.date.slice(5)))
+      : '每天';
     return `<div class="item ${done ? 'done' : ''}">
       <span class="box" onclick="Plan.toggle('${p.id}')">${done ? '✓' : ''}</span>
       <span class="time">${p.time ? Util.esc(p.time) : ''}</span>
-      <span class="grow">${Util.esc(p.text)}</span>
+      <span class="grow">${Util.esc(p.text)}
+        <span class="tag date ${past ? 'past' : ''}">📅 ${label}${past ? ' 已过' : ''}</span>
+        ${p.owner ? `<span class="tag owner">👤 ${Util.esc(p.owner)}</span>` : ''}
+      </span>
       <button class="del" onclick="Plan.del('${p.id}')">✕</button>
     </div>`;
   },
@@ -1582,7 +1630,10 @@ const Plan = {
     const all = this.all(), ids = this.doneIds();
     document.getElementById('planList').innerHTML = all.length
       ? all.map(p => this.row(p, ids.includes(p.id))).join('')
-      : '<div class="empty">还没有固定行程。早会、日报、周会这类每天都要做的写这儿</div>';
+      : '<div class="empty">还没有行程。早会、日报这类每天做的写这儿；某天的单项评审就选个日期</div>';
+
+    const dl = document.getElementById('planOwnerList');
+    if (dl) dl.innerHTML = this.owners().map(o => `<option value="${Util.esc(o)}"></option>`).join('');
   }
 };
 /* ==== 功能：计划 END ==== */
