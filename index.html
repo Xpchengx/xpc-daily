@@ -170,6 +170,52 @@ select{appearance:none;-webkit-appearance:none}
 .tag.owner{background:#1f3a5f;color:#9ecbff;cursor:pointer}
 .tag.date{background:#22304a;color:#a5b8d4}
 .tag.date.past{opacity:.5}
+
+/* 选择器：底部弹出面板（时间滚轮 / 日历） */
+.sheet-mask{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;display:none
+}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:91;display:none;
+  background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+  max-height:86vh;overflow:auto
+}
+.sheet-mask.on,.sheet.on{display:block}
+.sheet-head{display:flex;align-items:center;margin-bottom:10px;font-size:16px}
+.sheet-foot{display:flex;gap:10px;margin-top:14px}
+.sheet-foot .btn{flex:1}
+
+/* 时间滚轮：scroll-snap 保证停在整格，首尾天然到头就停（不循环） */
+.wheel{display:flex;justify-content:center;position:relative;height:210px;user-select:none}
+.wheel-col{
+  width:88px;height:210px;overflow-y:auto;scroll-snap-type:y mandatory;
+  padding:87px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch
+}
+.wheel-col::-webkit-scrollbar{display:none}
+.wheel-item{
+  height:36px;line-height:36px;text-align:center;scroll-snap-align:center;
+  font-size:19px;color:var(--text-dim);font-variant-numeric:tabular-nums
+}
+.wheel-item.on{color:var(--text);font-size:22px;font-weight:600}
+.wheel-sep{width:20px;line-height:210px;text-align:center;font-size:20px;color:var(--text-dim)}
+.wheel-bar{
+  position:absolute;left:16px;right:16px;top:87px;height:36px;pointer-events:none;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)
+}
+
+/* 日历面板 */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head button{background:none;border:none;color:var(--accent);font-size:22px;padding:2px 14px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-w{text-align:center;font-size:12px;color:var(--text-dim);padding:4px 0}
+.cal-d{text-align:center;padding:11px 0;border-radius:8px;font-size:15px;cursor:pointer}
+.cal-d:active{background:#22304a}
+.cal-d.on{background:var(--sidebar-active);color:#fff}
+.cal-d.today{border:1px solid var(--accent)}
+.cal-d.blank{visibility:hidden}
+.cal-quick{display:flex;gap:8px;margin-top:12px}
+.cal-quick .btn{flex:1}
 .tag.owner.me{background:#3d2f00;color:#f0c674}
 .box{
   width:22px;height:22px;flex-shrink:0;margin-top:3px;cursor:pointer;
@@ -330,7 +376,9 @@ select{appearance:none;-webkit-appearance:none}
           <input type="text" id="todoText" placeholder="要做的事，比如：整理客户 A 需求文档" data-page-node-id="a97rbNO6EG8olY7JKSFTFb">
         </div>
         <div class="row" style="margin-top:10px" data-page-node-id="tMLkcddnXeT9OFG8eroV0r">
-          <input type="time" id="todoTime" style="max-width:160px" title="选一个时间点，默认就是现在" data-page-node-id="GrOFL3fq2ThUi09pqWEu0g">
+          <input type="text" id="todoTime" readonly inputmode="none" placeholder="时间"
+                 style="max-width:150px;cursor:pointer" title="点一下选时间"
+                 onclick="Picker.openTime('todoTime')" data-page-node-id="GrOFL3fq2ThUi09pqWEu0g">
           <select id="todoPri" style="max-width:140px" data-page-node-id="XnqlHxvAjJgdqYpT66729v">
             <option value="1" data-page-node-id="GFFmtC8KetpCHOrgXQgG2W">P1 紧急</option>
             <option value="2" selected data-page-node-id="lCnNcK1QuRi5DwHVVZwNE9">P2 重要</option>
@@ -370,8 +418,10 @@ select{appearance:none;-webkit-appearance:none}
       <div class="card wide" data-page-node-id="3AxDTDplGblyohXYomZBdi">
         <h2 data-page-node-id="AxpgCMrH7Qdl7n0GTCZcNS">➕ 加一项</h2>
         <div class="row" data-page-node-id="5ebjdwuiEaGY3rSMIo1Vh5">
-          <input type="date" id="planDate" style="max-width:160px" title="留空 = 每天重复；选了日期 = 只在那天出现">
-          <input type="time" id="planTime" style="max-width:130px" title="可留空">
+          <input type="text" id="planDate" readonly inputmode="none" placeholder="日期（留空=每天）"
+                 style="max-width:170px;cursor:pointer" onclick="Picker.openDate('planDate')">
+          <input type="text" id="planTime" readonly inputmode="none" placeholder="时间（可留空）"
+                 style="max-width:140px;cursor:pointer" onclick="Picker.openTime('planTime')">
           <input type="text" id="planText" placeholder="部门早会" data-page-node-id="DiICjZF85N6qeowVUZxTqs">
           <button class="btn" onclick="Plan.add()" data-page-node-id="uYTDQGhqFVECYhqjLkkvVM">添加</button>
         </div>
@@ -557,6 +607,24 @@ select{appearance:none;-webkit-appearance:none}
 </div>
 
 <div class="toast" id="toast" data-page-node-id="luT6NrxGC1cy7RjS115Zsz"></div>
+
+<!-- ==== 功能：选择器 START ====
+     自己画的时间滚轮（有边界，不绕回去）和日历面板。
+     不用原生 input[type=time]/[type=date] 是因为手机系统的滚轮是循环的，
+     网页没有任何参数能关掉那个循环，只能自己实现。 -->
+<div class="sheet-mask" id="pickerMask" onclick="Picker.close()"></div>
+<div class="sheet" id="pickerSheet" role="dialog" aria-modal="true">
+  <div class="sheet-head">
+    <b id="pickerTitle">选择</b>
+    <button class="btn ghost" style="margin:0 0 0 auto;padding:4px 12px" onclick="Picker.clearIt()">清空</button>
+  </div>
+  <div id="pickerBody"></div>
+  <div class="sheet-foot">
+    <button class="btn ghost" onclick="Picker.close()">取消</button>
+    <button class="btn" onclick="Picker.confirm()">确定</button>
+  </div>
+</div>
+<!-- ==== 功能：选择器 END ==== -->
 
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -1197,6 +1265,147 @@ const Settings = {
 };
 
 
+/* ==== 功能：选择器 START ====
+   自己画的时间滚轮 + 日历面板。
+   为什么不用原生 input[type=time]/[type=date]：手机系统弹出的滚轮是循环的，
+   HTML 规范里没有任何属性能关掉这个循环，只能自己实现。
+   滚轮用 CSS scroll-snap 停在整格，首尾到头即停（天然不循环）。 */
+const Picker = {
+  ITEM: 36,          // 和 CSS 里 .wheel-item 的 height 必须一致
+  _mode: '', _target: '',
+  _h: 9, _m: 0,      // 时间
+  _sel: '', _vy: 0, _vm: 0,   // 日期：选中值 / 当前看的年月
+  _t: null,
+
+  openTime(id){
+    this._mode = 'time'; this._target = id;
+    const cur = (document.getElementById(id).value || '').trim();
+    const mt = /^(\d{1,2}):(\d{2})$/.exec(cur);
+    const now = new Date();
+    this._h = mt ? Math.min(23, +mt[1]) : now.getHours();
+    this._m = mt ? Math.min(59, +mt[2]) : now.getMinutes();
+    document.getElementById('pickerTitle').textContent = '选择时间';
+    document.getElementById('pickerBody').innerHTML =
+      `<div class="wheel">
+         <div class="wheel-col" id="wH" onscroll="Picker.onScroll('wH','h')">${this._col(24, 'wH')}</div>
+         <div class="wheel-sep">:</div>
+         <div class="wheel-col" id="wM" onscroll="Picker.onScroll('wM','m')">${this._col(60, 'wM')}</div>
+         <div class="wheel-bar"></div>
+       </div>`;
+    this.show();
+    /* 等插入 DOM 后再定位，否则 scrollTop 设不上去 */
+    requestAnimationFrame(() => { this._to('wH', this._h); this._to('wM', this._m); });
+  },
+
+  openDate(id){
+    this._mode = 'date'; this._target = id;
+    const cur = (document.getElementById(id).value || '').trim();
+    this._sel = /^\d{4}-\d{2}-\d{2}$/.test(cur) ? cur : '';
+    const base = this._sel ? new Date(this._sel + 'T00:00:00') : new Date();
+    this._vy = base.getFullYear(); this._vm = base.getMonth();
+    document.getElementById('pickerTitle').textContent = '选择日期';
+    this._cal();
+    this.show();
+  },
+
+  _col(n, id){
+    let h = '';
+    for (let i = 0; i < n; i++)
+      h += `<div class="wheel-item" onclick="Picker.tap('${id}',${i})">${String(i).padStart(2, '0')}</div>`;
+    return h;
+  },
+
+  _to(id, v){ const el = document.getElementById(id); if (el) el.scrollTop = v * this.ITEM; },
+
+  /** 点某一格直接滑过去（比慢慢滚快） */
+  tap(id, i){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const top = i * this.ITEM;
+    if (typeof el.scrollTo === 'function'){
+      try { el.scrollTo({ top, behavior:'smooth' }); return; } catch(e){ /* 老浏览器降级 */ }
+    }
+    el.scrollTop = top;
+  },
+
+  /** 滚动停下后取正中间那一格 */
+  onScroll(id, which){
+    clearTimeout(this._t);
+    this._t = setTimeout(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const max = id === 'wH' ? 23 : 59;
+      const v = Math.max(0, Math.min(max, Math.round(el.scrollTop / this.ITEM)));
+      if (which === 'h') this._h = v; else this._m = v;
+      [...el.querySelectorAll('.wheel-item')].forEach((x, k) => x.classList.toggle('on', k === v));
+    }, 110);
+  },
+
+  _tomorrow(){ const d = new Date(); d.setDate(d.getDate() + 1); return Util.dateOf(d); },
+
+  _cal(){
+    const y = this._vy, m = this._vm, today = Util.today();
+    const start = (new Date(y, m, 1).getDay() + 6) % 7;      // 周一开头
+    const days = new Date(y, m + 1, 0).getDate();
+    let h = `<div class="cal-head">
+        <button onclick="Picker.move(-1)">‹</button><b>${y} 年 ${m + 1} 月</b>
+        <button onclick="Picker.move(1)">›</button></div><div class="cal-grid">`;
+    for (const w of ['一','二','三','四','五','六','日']) h += `<div class="cal-w">${w}</div>`;
+    for (let i = 0; i < start; i++) h += '<div class="cal-d blank"></div>';
+    for (let d = 1; d <= days; d++){
+      const s = `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      h += `<div class="cal-d ${s === this._sel ? 'on' : ''} ${s === today ? 'today' : ''}"
+              onclick="Picker.pick('${s}')">${d}</div>`;
+    }
+    h += `</div><div class="cal-quick">
+        <button class="btn ghost" onclick="Picker.pick('${today}')">今天</button>
+        <button class="btn ghost" onclick="Picker.pick('${this._tomorrow()}')">明天</button>
+      </div>`;
+    document.getElementById('pickerBody').innerHTML = h;
+  },
+
+  move(n){
+    this._vm += n;
+    if (this._vm < 0){ this._vm = 11; this._vy--; }
+    if (this._vm > 11){ this._vm = 0; this._vy++; }
+    this._cal();
+  },
+
+  /** 日历点哪天就直接选好关掉——再让点一次「确定」是多余的一步 */
+  pick(s){ this._sel = s; this._cal(); this.confirm(); },
+
+  confirm(){
+    const el = document.getElementById(this._target);
+    if (el) el.value = this._mode === 'time'
+      ? String(this._h).padStart(2,'0') + ':' + String(this._m).padStart(2,'0')
+      : (this._sel || '');
+    /* 选了时间，就把"用户主动清空过"的标记撤掉 */
+    if (this._target === 'todoTime' && typeof Todo !== 'undefined') Todo._noAutoTime = false;
+    this.close();
+  },
+
+  clearIt(){
+    const el = document.getElementById(this._target);
+    if (el) el.value = '';
+    if (this._mode === 'date') this._sel = '';
+    /* 主动清空后别再自动填当前时间，否则"不挂时间"这个选择会被悄悄改掉 */
+    if (this._target === 'todoTime' && typeof Todo !== 'undefined') Todo._noAutoTime = true;
+    this.close();
+  },
+
+  show(){
+    document.getElementById('pickerMask').classList.add('on');
+    document.getElementById('pickerSheet').classList.add('on');
+  },
+
+  close(){
+    document.getElementById('pickerMask').classList.remove('on');
+    document.getElementById('pickerSheet').classList.remove('on');
+  }
+};
+/* ==== 功能：选择器 END ==== */
+
+
 /* ═══════════════════════════════════════════════════════════
    App · 路由与启动
    ═══════════════════════════════════════════════════════════ */
@@ -1297,13 +1506,16 @@ const Todo = {
     return `挂 ${hang} 天` + (late ? ` · 拖 ${late} 天` : '');
   },
 
-  /** 时间框里没值时，先填成"现在"——用户说默认当前时间 */
+  /** 时间框里没值时，先填成"现在"——用户说默认当前时间。
+      但用户主动点过「清空」就别再自动填，尊重"这条不挂时间"的选择。 */
   initTime(){
+    if (this._noAutoTime) return;
     const el = document.getElementById('todoTime');
     if (el && !el.value) el.value = Util.hm();
   },
   /** 加完一条，把时间重新推到"现在"，连着加下一条时不用手动改 */
   resetTime(){
+    if (this._noAutoTime) return;
     const el = document.getElementById('todoTime');
     if (el) el.value = Util.hm();
   },
