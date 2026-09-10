@@ -170,6 +170,37 @@ select{appearance:none;-webkit-appearance:none}
 .tag.owner{background:#1f3a5f;color:#9ecbff;cursor:pointer}
 .tag.date{background:#22304a;color:#a5b8d4}
 .tag.date.past{opacity:.5}
+/* ── 计划：日历视图 ── */
+.pseg{display:flex;gap:8px;margin-bottom:12px}
+.pseg .chip{padding:4px 14px}
+.pcal-head{display:flex;align-items:center;gap:8px;margin:16px 0 10px}
+.pcal-head b{flex:1;text-align:center;font-size:15px}
+.pcal-nav{background:#0d1117;border:1px solid var(--line);color:var(--text-dim);
+  border-radius:8px;min-width:32px;height:30px;font-size:15px;cursor:pointer;padding:0 8px}
+.pcal-nav:active{border-color:var(--accent)}
+.pcal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.pcal-w{text-align:center;font-size:12px;color:var(--text-dim);padding:0 0 4px}
+.pcal-d{min-height:56px;border-radius:9px;background:#111920;border:1px solid transparent;
+  padding:5px 2px;cursor:pointer;text-align:center;
+  display:flex;flex-direction:column;align-items:center}
+.pcal-d:active{background:#182430}
+.pcal-d.blank{visibility:hidden}
+.pcal-d .pn{font-size:13px;color:#8b99a8;line-height:1.25}
+.pcal-d.has .pn{color:var(--text);font-weight:600}
+.pcal-d.today{border-color:var(--accent)}
+.pcal-d.today .pn{color:var(--accent)}
+.pcal-d.on{background:var(--sidebar-active)}
+.pcal-d.past{opacity:.5}
+.pcal-d .pdots{display:flex;gap:2px;justify-content:center;margin-top:4px}
+.pcal-d .pdot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.pcal-d .pmore{font-size:10px;color:var(--text-dim);margin-top:2px}
+.pday{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
+.pday-h{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-dim);margin-bottom:4px}
+.pday-h .btn{margin-left:auto;font-size:12px;padding:4px 10px}
+.pday-item{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.pday-item .pt{color:var(--text-dim);font-size:13px;min-width:44px}
+.pday-item .pg{flex:1;word-break:break-word}
+.pday-item .pdl{color:var(--text-dim);background:none;border:none;font-size:14px;padding:0 4px;flex-shrink:0}
 
 /* 选择器：底部弹出面板（时间滚轮 / 日历） */
 .sheet-mask{
@@ -434,7 +465,12 @@ select{appearance:none;-webkit-appearance:none}
       </div>
       <div class="card wide" data-page-node-id="SvtIMXXb2JYW45lt3Rblvk">
         <h2 data-page-node-id="b5dfzpOV91NpCbAn85sUHI">📅 全部行程</h2>
+        <div class="pseg">
+          <span class="chip" id="planViewList" onclick="Plan.setView('list')">列表</span>
+          <span class="chip" id="planViewCal" onclick="Plan.setView('cal')">日历</span>
+        </div>
         <div id="planList" data-page-node-id="bo7u8hHDE3KOHFAg6oZO7C"></div>
+        <div id="planCal" style="display:none"></div>
       </div>
     </section>
     <!-- ==== 功能：计划 END ==== -->
@@ -587,6 +623,22 @@ select{appearance:none;-webkit-appearance:none}
         </p>
       </div>
       <!-- ==== 日志同步开关 END ==== -->
+
+      <!-- ==== 震动反馈开关 START ==== -->
+      <div class="card wide" id="hapticCard">
+        <h2>📳 震动反馈</h2>
+        <p class="hint" style="margin-top:0">
+          滚时间/日期滚轮时，每过一格手机轻震一下，手感接近系统控件。<br>
+          <b>安卓</b>：可用，效果最好。<br>
+          <b>苹果 iPhone</b>：Safari 至今不给网页开放震动接口，只能用变通办法试一下，
+          <b>可能完全没反应</b> —— 没反应就关掉它，不影响别的。
+        </p>
+        <div class="row" style="margin-top:14px">
+          <button class="btn" id="hapticBtn" onclick="Settings.toggleHaptic()"></button>
+          <span class="hint" id="hapticInfo" style="margin:0"></span>
+        </div>
+      </div>
+      <!-- ==== 震动反馈开关 END ==== -->
 
       <div class="card" data-page-node-id="LPHC80WsFAEPkhV8krclvl">
         <h2 data-page-node-id="4HO0MyHuGzYtatZB1YlbKK">⚠️ 危险操作</h2>
@@ -1213,9 +1265,32 @@ const Settings = {
     this.refreshBackupInfo();
     this.renderGist();
     this.renderLogSync();
+    this.renderHaptic();
   },
 
   enableGist(){ GistSync.enable(document.getElementById('gistToken').value); },
+
+  /* ── 震动反馈 ── */
+  toggleHaptic(){
+    const on = !Haptics.on();
+    Store.set('haptic', on ? '1' : '0');
+    Haptics._last = 0;                 // 重置节流，让这一次马上能感受到
+    if (on) Haptics.tick(18);
+    UI.toast(on ? '震动已开启' : '震动已关闭');
+    this.renderHaptic();
+  },
+
+  renderHaptic(){
+    const btn = document.getElementById('hapticBtn');
+    if (!btn) return;
+    const on = Haptics.on();
+    btn.textContent = on ? '📳 已开启' : '🔇 已关闭';
+    btn.classList.toggle('ghost', !on);
+    const info = document.getElementById('hapticInfo');
+    if (info) info.textContent = navigator.vibrate
+      ? '这台设备支持，滚轮每过一格会震一下'
+      : (/iP(hone|ad|od)/.test(navigator.userAgent || '') ? 'iPhone 上可能无效，试试就知道' : '这台设备好像不支持震动');
+  },
 
   /* ── 工作日志要不要跟着上云 ── */
   logSyncOn(){ return Store.get('logSync') === '1'; },
@@ -1270,6 +1345,49 @@ const Settings = {
    为什么不用原生 input[type=time]/[type=date]：手机系统弹出的滚轮是循环的，
    HTML 规范里没有任何属性能关掉这个循环，只能自己实现。
    滚轮用 CSS scroll-snap 停在整格，首尾到头即停（天然不循环）。 */
+/* ==== 功能：震动反馈 START ====
+   安卓：navigator.vibrate，稳。
+   苹果：Safari 不开放 Vibration API，退而求其次 —— 藏一个原生 switch 开关在屏幕外，
+   程序点它一下能骗到一次系统触觉反馈（iOS 17.4+ 才认，不保证有效）。
+   两个都不行就静默失败，绝不影响功能。 */
+const Haptics = {
+  _last: 0,
+  _ios: null,
+
+  on(){ return Store.get('haptic', '1') === '1'; },
+
+  _prepIos(){
+    if (this._ios !== null) return this._ios;
+    if (!/iP(hone|ad|od)/.test(navigator.userAgent || '')){ this._ios = false; return false; }
+    try{
+      const lab = document.createElement('label');
+      lab.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none';
+      const inp = document.createElement('input');
+      inp.type = 'checkbox';
+      try { inp.switch = true; } catch(e){ lab.setAttribute('switch', ''); }
+      lab.appendChild(inp);
+      (document.body || document.documentElement).appendChild(lab);
+      this._ios = inp;
+    }catch(e){ this._ios = false; }
+    return this._ios;
+  },
+
+  /** ms 越短越"脆"，滚轮用 8，确认按钮用 14 */
+  tick(ms){
+    if (!this.on()) return;
+    const now = Date.now();
+    if (now - this._last < 35) return;      // 节流：滚动时别把马达打爆
+    this._last = now;
+    if (navigator.vibrate){
+      try { navigator.vibrate(ms || 8); return; } catch(e){ /* 有些浏览器会抛 */ }
+    }
+    const sw = this._prepIos();
+    if (sw){ try { sw.click(); } catch(e){ /* 不支持就算了 */ } }
+  }
+};
+/* ==== 功能：震动反馈 END ==== */
+
+
 const Picker = {
   ITEM: 36,          // 和 CSS 里 .wheel-item 的 height 必须一致
   _mode: '', _target: '',
@@ -1328,17 +1446,19 @@ const Picker = {
     el.scrollTop = top;
   },
 
-  /** 滚动停下后取正中间那一格 */
+  /** 每滚过一格立刻取正中间那一格：高亮 + 轻震动；停下后再吸附到整格 */
   onScroll(id, which){
-    clearTimeout(this._t);
-    this._t = setTimeout(() => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const max = id === 'wH' ? 23 : 59;
-      const v = Math.max(0, Math.min(max, Math.round(el.scrollTop / this.ITEM)));
-      if (which === 'h') this._h = v; else this._m = v;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const max = id === 'wH' ? 23 : 59;
+    const v = Math.max(0, Math.min(max, Math.round(el.scrollTop / this.ITEM)));
+    if (this['_' + which] !== v){
+      this['_' + which] = v;
       [...el.querySelectorAll('.wheel-item')].forEach((x, k) => x.classList.toggle('on', k === v));
-    }, 110);
+      Haptics.tick(8);
+    }
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this._to(id, this['_' + which]), 110);
   },
 
   _tomorrow(){ const d = new Date(); d.setDate(d.getDate() + 1); return Util.dateOf(d); },
@@ -1372,9 +1492,10 @@ const Picker = {
   },
 
   /** 日历点哪天就直接选好关掉——再让点一次「确定」是多余的一步 */
-  pick(s){ this._sel = s; this._cal(); this.confirm(); },
+  pick(s){ if (this._sel !== s){ this._sel = s; Haptics.tick(10); } this._cal(); this.confirm(); },
 
   confirm(){
+    Haptics.tick(14);
     const el = document.getElementById(this._target);
     if (el) el.value = this._mode === 'time'
       ? String(this._h).padStart(2,'0') + ':' + String(this._m).padStart(2,'0')
@@ -1642,7 +1763,7 @@ const Todo = {
     if (!it) return;
     const done = !it.done;
     Store.upsert('todo', { id, done, doneAt: done ? Date.now() : null });
-    if (done) UI.toast('搞定一件');
+    if (done){ UI.toast('搞定一件'); Haptics.tick(16); }
     this.render();
     if (typeof Today !== 'undefined') Today.render();
   },
@@ -1760,6 +1881,9 @@ const Today = {
    固定行程：模板长期存，完成状态按天存（Store.listDaily），
    所以第二天打开自动是未勾选，不用手动清。 */
 const Plan = {
+  _vy: 0, _vm: 0,      // 日历当前看的年月
+  _day: '',            // 日历选中的那天
+
   /** 排序：每天重复的排最前，然后按日期，同日期内按时间 */
   all(){
     return Store.list('plan', (a, b) => {
@@ -1785,8 +1909,10 @@ const Plan = {
   doneIds(){ return Store.listDaily('planDone').map(x => x.id); },
 
   toggle(id){
-    if (this.doneIds().includes(id)) Store.softDeleteDaily('planDone', id);
+    const was = this.doneIds().includes(id);
+    if (was) Store.softDeleteDaily('planDone', id);
     else Store.upsertDaily('planDone', { id });
+    if (!was) Haptics.tick(16);
     this.render();
     if (typeof Today !== 'undefined') Today.render();
   },
@@ -1838,11 +1964,121 @@ const Plan = {
     </div>`;
   },
 
-  render(){
+  /** 日历里那一行：只读展示（勾选状态是按天记的，翻看别的日子不该动它） */
+  dayRow(p){
+    return `<div class="pday-item">
+      <span class="pt">${p.time ? Util.esc(p.time) : ''}</span>
+      <span class="pg">${Util.esc(p.text)}
+        ${p.owner ? `<span class="tag owner">👤 ${Util.esc(p.owner)}</span>` : ''}
+      </span>
+      <button class="pdl" onclick="Plan.del('${p.id}')">✕</button>
+    </div>`;
+  },
+
+  dayLabel(s){
+    if (s === Util.today()) return '今天';
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    if (s === Util.dateOf(d)) return '明天';
+    return `${+s.slice(5, 7)} 月 ${+s.slice(8, 10)} 日`;
+  },
+
+  pickDay(s){ if (this._day !== s){ this._day = s; Haptics.tick(12); } this.render(); },
+  move(n){
+    this._vm += n;
+    if (this._vm < 0){ this._vm = 11; this._vy--; }
+    if (this._vm > 11){ this._vm = 0; this._vy++; }
+    this.render();
+  },
+  thisMonth(){ const d = new Date(); this._vy = d.getFullYear(); this._vm = d.getMonth(); this._day = Util.today(); this.render(); },
+
+  /** 把日期填进上面的表单并把光标挪到内容框——省得你再点一次日期 */
+  addTo(d){
+    const el = document.getElementById('planDate');
+    if (el) el.value = d;
+    this._day = d;
+    const x = document.getElementById('planText');
+    if (x) x.focus();
+    this.render();
+  },
+
+  setView(v){ Store.set('planView', v); Haptics.tick(10); this.render(); },
+
+  /** 日历视图：整月铺开，哪天有安排直接标在格子里 */
+  cal(){
+    const box = document.getElementById('planCal');
+    if (!box) return;
+    const t = Util.today(), now = new Date();
+    if (!this._vy){ this._vy = now.getFullYear(); this._vm = now.getMonth(); }
+    if (!this._day) this._day = t;
+    const y = this._vy, m = this._vm;
+    const all = this.all();
+    const daily = all.filter(p => !p.date);
+    const byDay = {};
+    for (const p of all) if (p.date) (byDay[p.date] || (byDay[p.date] = [])).push(p);
+    const cur = (y === now.getFullYear() && m === now.getMonth());
+
+    let h = `<div class="pcal-head">
+        <button class="pcal-nav" onclick="Plan.move(-1)">‹</button>
+        <b>${y} 年 ${m + 1} 月</b>
+        ${cur ? '' : '<button class="pcal-nav" onclick="Plan.thisMonth()">本月</button>'}
+        <button class="pcal-nav" onclick="Plan.move(1)">›</button>
+      </div><div class="pcal-grid">`;
+    for (const w of ['一','二','三','四','五','六','日']) h += `<div class="pcal-w">${w}</div>`;
+    const start = (new Date(y, m, 1).getDay() + 6) % 7;
+    const days = new Date(y, m + 1, 0).getDate();
+    for (let i = 0; i < start; i++) h += '<div class="pcal-d blank"></div>';
+    for (let d = 1; d <= days; d++){
+      const s = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const n = (byDay[s] || []).length;
+      let dots = n
+        ? `<div class="pdots">${'<i class="pdot"></i>'.repeat(Math.min(3, n))}</div>`
+          + (n > 3 ? `<div class="pmore">+${n - 3}</div>` : '')
+        : '';
+      h += `<div class="pcal-d ${n ? 'has' : ''} ${s === t ? 'today' : ''} ${s === this._day ? 'on' : ''} ${s < t ? 'past' : ''}"
+              onclick="Plan.pickDay('${s}')"><span class="pn">${d}</span>${dots}</div>`;
+    }
+    h += '</div>';
+
+    /* 选中那天的明细 */
+    const sel = this._day, items = byDay[sel] || [];
+    h += `<div class="pday">
+        <div class="pday-h"><span>${this.dayLabel(sel)} · ${items.length} 项</span>
+          <button class="btn ghost" onclick="Plan.addTo('${sel}')">＋ 给这天加一项</button></div>`;
+    h += items.length
+      ? items.map(p => this.dayRow(p)).join('')
+      : `<div class="empty" style="padding:12px 0">这天没有单独安排${daily.length ? '，每天重复的 ' + daily.length + ' 项照常做' : ''}</div>`;
+    h += '</div>';
+
+    /* 每天重复的放最后，勾选状态照常按天记 */
+    const ids = this.doneIds();
+    h += `<div class="pday"><div class="pday-h"><span>🔁 每天重复 · ${daily.length} 项</span></div>`;
+    h += daily.length
+      ? daily.map(p => this.row(p, ids.includes(p.id))).join('')
+      : '<div class="empty" style="padding:10px 0">还没有每天重复的行程</div>';
+    h += '</div>';
+
+    box.innerHTML = h;
+  },
+
+  list(){
     const all = this.all(), ids = this.doneIds();
-    document.getElementById('planList').innerHTML = all.length
+    const box = document.getElementById('planList');
+    if (!box) return;
+    box.innerHTML = all.length
       ? all.map(p => this.row(p, ids.includes(p.id))).join('')
       : '<div class="empty">还没有行程。早会、日报这类每天做的写这儿；某天的单项评审就选个日期</div>';
+  },
+
+  render(){
+    this.list();
+    this.cal();
+    const v = Store.get('planView', 'cal');
+    const l = document.getElementById('planList'), c = document.getElementById('planCal');
+    if (l) l.style.display = v === 'list' ? '' : 'none';
+    if (c) c.style.display = v === 'cal' ? '' : 'none';
+    const bl = document.getElementById('planViewList'), bc = document.getElementById('planViewCal');
+    if (bl) bl.classList.toggle('on', v === 'list');
+    if (bc) bc.classList.toggle('on', v === 'cal');
 
     const dl = document.getElementById('planOwnerList');
     if (dl) dl.innerHTML = this.owners().map(o => `<option value="${Util.esc(o)}"></option>`).join('');
