@@ -199,16 +199,29 @@ select{appearance:none;-webkit-appearance:none}
 .pcal-d.today .pn{color:var(--accent)}
 .pcal-d.on{background:var(--sidebar-active)}
 .pcal-d.past{opacity:.5}
-.pcal-d .pdots{display:flex;gap:2px;justify-content:center;margin-top:4px}
+.pcal-d .pdots{display:flex;gap:2px;justify-content:center;margin-top:4px;flex-wrap:wrap}
 .pcal-d .pdot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+/* 三类点：蓝=行程，橙=待办没做，绿淡=已办（不抢注意力） */
+.pcal-d .pdot.plan{background:var(--accent)}
+.pcal-d .pdot.todo{background:#d29922}
+.pcal-d .pdot.done{background:#3fb950;opacity:.55}
 .pcal-d .pmore{font-size:10px;color:var(--text-dim);margin-top:2px}
+.pcal-legend{display:flex;gap:12px;justify-content:center;font-size:11px;color:var(--text-dim);margin-top:8px}
+.pcal-legend i{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:4px;vertical-align:middle}
 .pday{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
 .pday-h{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-dim);margin-bottom:4px}
 .pday-h .btn{margin-left:auto;font-size:12px;padding:4px 10px}
+.pday-h .btns{display:flex;gap:6px;margin-left:auto}
+.pday-h .btns .btn{margin-left:0}
 .pday-item{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
 .pday-item .pt{color:var(--text-dim);font-size:13px;min-width:44px}
 .pday-item .pg{flex:1;word-break:break-word}
 .pday-item .pdl{color:var(--text-dim);background:none;border:none;font-size:14px;padding:0 4px;flex-shrink:0}
+/* 日历里待办那一行：能直接勾 */
+.pday-item.t{display:flex;align-items:flex-start;gap:8px}
+.pday-item.t .box{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+.pday-item.t.done .pg{color:var(--text-dim);text-decoration:line-through}
+.pday-sub{font-size:11px;color:var(--text-dim);margin:6px 0 2px}
 
 /* 选择器：底部弹出面板（时间滚轮 / 日历） */
 .sheet-mask{
@@ -443,7 +456,9 @@ select{appearance:none;-webkit-appearance:none}
         <p class="hint" style="margin:0">点一个人名就只看他的任务，点「全部」看所有人。名字后面的数字是还没完成的件数。</p>
       </div>
       <div data-fold="c6" class="card wide" data-page-node-id="HLswLCWjeuHEH6Dzc6SjNw">
-        <h2 data-page-node-id="MRyvgbLoVfjBHWQUKjq672">📋 进行中</h2>
+        <h2 data-page-node-id="MRyvgbLoVfjBHWQUKjq672">📋 进行中
+          <button class="btn ghost" style="margin-left:auto;font-size:12px;padding:4px 10px"
+                  onclick="Plan.openCal()">📅 看日历</button></h2>
         <div id="todoOpen" data-page-node-id="H7OY9sJLZ3AR80IXcYCuDK"></div>
       </div>
       <div data-fold="c7" class="card wide" data-page-node-id="sojPp9uNBMdMV3BL9dWjbM">
@@ -1696,6 +1711,40 @@ const Todo = {
     return n > 0 ? n : 0;
   },
 
+  /** 这条待办该出现在日历的哪一天（'' = 不进日历）
+      规则（和用户确认过）：
+        · 已完成  → 实际做完那天（doneAt）
+        · 未完成、已到期的（含顺延中的）→ 今天
+        · 未完成、还没到期 → 原定那天 due
+      due 是「原始应完成日」且永不改写，所以顺延中的任务必须归到今天，
+      否则拖了 5 天的任务会一直留在 5 天前那格，今天的日历上反而看不到。 */
+  dayOf(x){
+    if (x.done) return x.doneAt ? Util.dateOf(new Date(x.doneAt)) : '';
+    const t = Util.today();
+    if (!x.due || x.due <= t) return t;
+    return x.due;
+  },
+
+  /** 按天分组：{ '2026-09-10': [todo, ...] } */
+  byDay(){
+    const map = {};
+    for (const x of this.all()){
+      const d = this.dayOf(x);
+      if (!d) continue;
+      (map[d] || (map[d] = [])).push(x);
+    }
+    for (const k in map){
+      map[k].sort((a, b) => {
+        /* 没做完的排前面；都做完/都没做完就按时间，再按优先级 */
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        const ta = a.time || '99:99', tb = b.time || '99:99';
+        if (ta !== tb) return ta < tb ? -1 : 1;
+        return (a.pri || 2) - (b.pri || 2);
+      });
+    }
+    return map;
+  },
+
   /** 排序：拖得久的在前 → 优先级 → 时间 → 创建顺序 */
   cmp(a, b){
     const la = this.late(a), lb = this.late(b);
@@ -1738,23 +1787,38 @@ const Todo = {
     const pri = parseInt(document.getElementById('todoPri').value, 10) || 2;
     const ownerEl = document.getElementById('todoOwner');
     const owner = ownerEl ? (ownerEl.value || '').trim() : '';
+    /* _due 是日历里「＋ 待办」带过来的目标日期，没带就是今天 */
+    const due = /^\d{4}-\d{2}-\d{2}$/.test(this._due || '') ? this._due : Util.today();
     Store.upsert('todo', {
       text,
       time: /^\d{1,2}:\d{2}$/.test(raw) ? raw : '',
       pri,
       owner,
       createdAt: Date.now(),
-      due: Util.today(),
+      due,
       done: false,
       doneAt: null,
       note: ''
     });
+    this._due = '';
     el.value = '';
     /* 责任人故意保留：连续给同一个人录几条是常态，清空反而烦 */
     this.resetTime();
     el.focus();
     this.render();
     if (typeof Today !== 'undefined') Today.render();
+    if (typeof Plan !== 'undefined') Plan.render();
+    /* 排到未来的任务今天页看不到（due 没到），说一声免得以为什么都没发生 */
+    if (due > Util.today()) UI.toast(`已排到 ${due.slice(5).replace('-', ' 月 ')} 日`);
+  },
+
+  /** 日历里点「＋ 待办」：记住目标日期并跳到待办页，光标直接落在内容框 */
+  _due: '',
+  addTo(d){
+    this._due = (d && d !== Util.today()) ? d : '';
+    if (typeof App !== 'undefined') App.go('todo');
+    const x = document.getElementById('todoText');
+    if (x) x.focus();
   },
 
   /* ── 责任人：这件事该谁推进 ── */
@@ -1855,6 +1919,8 @@ const Todo = {
     if (done){ UI.toast('搞定一件'); Haptics.tick(16); }
     this.render();
     if (typeof Today !== 'undefined') Today.render();
+    /* 勾完要同步日历：做完的会从「橙点」变成「绿点」并挪到今天 */
+    if (typeof Plan !== 'undefined') Plan.render();
   },
 
   del(id){
@@ -1862,10 +1928,14 @@ const Todo = {
     Store.softDelete('todo', id);
     this.render();
     if (typeof Today !== 'undefined') Today.render();
+    if (typeof Plan !== 'undefined') Plan.render();
   },
 
   row(x){
     const late = this.late(x);
+    const t = Util.today();
+    /* 排在未来的任务：待办页看不出它属于哪天，标一下日期 */
+    const future = !x.done && !late && x.due && x.due > t;
     const over = !x.done && x.time && x.time <= Util.hm();
     const pri = x.pri || 2;
     const hasNote = !!(x.note && x.note.trim());
@@ -1876,6 +1946,7 @@ const Todo = {
         <span class="tag p${pri}">P${pri}</span>
         ${x.owner ? `<span class="tag owner" data-owner="${Util.esc(x.owner)}" onclick="Todo.filterByOwner(this)" title="只看这个人的">👤 ${Util.esc(x.owner)}</span>` : ''}
         ${(late && !x.done) ? `<span class="tag late">已拖 ${late} 天</span>` : ''}
+        ${future ? `<span class="tag date">📅 ${Util.esc(x.due.slice(5))}</span>` : ''}
         ${over ? '<span class="tag now">到点了</span>' : ''}
         ${x.done ? `<span class="tag span">${Util.esc(this.span(x))}</span>` : ''}
         ${(late && !x.done && !hasNote) ? `<span class="tag late" style="cursor:pointer" onclick="Todo.toggleNote('${x.id}')">记一笔为什么没做</span>` : ''}
@@ -2063,6 +2134,25 @@ const Plan = {
     </div>`;
   },
 
+  /** 日历里待办那一行：可以直接勾掉（待办的完成状态是跟着条目走的，不是按天记，
+      所以在日历里勾它跟在待办页勾是一回事，不会被翻月影响） */
+  dayTodoRow(x){
+    const late = Todo.late(x);
+    const pri = x.pri || 2;
+    return `<div class="pday-item t ${x.done ? 'done' : ''}">
+      <span class="box" onclick="Todo.toggle('${x.id}')">${x.done ? '✓' : ''}</span>
+      <span class="pt">${x.time ? Util.esc(x.time) : ''}</span>
+      <span class="pg">${Util.esc(x.text)}
+        <span class="tag p${pri}">P${pri}</span>
+        ${x.owner ? `<span class="tag owner">👤 ${Util.esc(x.owner)}</span>` : ''}
+        ${(late && !x.done) ? `<span class="tag late">已拖 ${late} 天</span>` : ''}
+        ${x.done && Todo.span(x) ? `<span class="tag span">${Util.esc(Todo.span(x))}</span>` : ''}
+        ${(x.note || '').trim() ? `<span class="tag">💬 ${Util.esc(x.note)}</span>` : ''}
+      </span>
+      <button class="pdl" onclick="Todo.del('${x.id}')">✕</button>
+    </div>`;
+  },
+
   /** 日历里那一行：只读展示（勾选状态是按天记的，翻看别的日子不该动它） */
   dayRow(p){
     return `<div class="pday-item">
@@ -2090,6 +2180,12 @@ const Plan = {
   },
   thisMonth(){ const d = new Date(); this._vy = d.getFullYear(); this._vm = d.getMonth(); this._day = Util.today(); this.render(); },
 
+  /** 待办页「📅 看日历」：跳到计划页并切成日历视图 */
+  openCal(){
+    if (typeof App !== 'undefined') App.go('plan');
+    this.setView('cal');
+  },
+
   /** 把日期填进上面的表单并把光标挪到内容框——省得你再点一次日期 */
   addTo(d){
     const el = document.getElementById('planDate');
@@ -2114,6 +2210,8 @@ const Plan = {
     const daily = all.filter(p => !p.date);
     const byDay = {};
     for (const p of all) if (p.date) (byDay[p.date] || (byDay[p.date] = [])).push(p);
+    /* 待办并进来：橙点=没做，绿点=已办 */
+    const todoBy = (typeof Todo !== 'undefined') ? Todo.byDay() : {};
     const cur = (y === now.getFullYear() && m === now.getMonth());
 
     let h = `<div class="pcal-head">
@@ -2128,24 +2226,48 @@ const Plan = {
     for (let i = 0; i < start; i++) h += '<div class="pcal-d blank"></div>';
     for (let d = 1; d <= days; d++){
       const s = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const n = (byDay[s] || []).length;
-      let dots = n
-        ? `<div class="pdots">${'<i class="pdot"></i>'.repeat(Math.min(3, n))}</div>`
-          + (n > 3 ? `<div class="pmore">+${n - 3}</div>` : '')
+      const tl = todoBy[s] || [];
+      const tn = tl.filter(x => !x.done).length;   // 没做完的（橙）
+      const dn = tl.length - tn;                   // 已办（绿）
+      const pn = (byDay[s] || []).length;          // 行程（蓝）
+      /* 一格最多 4 个点：待办优先，行程保底留 1 个，已办填剩下的空位 */
+      const sT = Math.min(tn, 3);
+      const sP = Math.min(pn, Math.max(1, 4 - sT));
+      const sD = Math.min(dn, Math.max(0, 4 - sT - sP));
+      const hidden = tn + dn + pn - sT - sP - sD;
+      const dots = (tn + dn + pn)
+        ? `<div class="pdots">${'<i class="pdot todo"></i>'.repeat(sT)}${'<i class="pdot done"></i>'.repeat(sD)}${'<i class="pdot plan"></i>'.repeat(sP)}</div>`
+          + (hidden > 0 ? `<div class="pmore">+${hidden}</div>` : '')
         : '';
-      h += `<div class="pcal-d ${n ? 'has' : ''} ${s === t ? 'today' : ''} ${s === this._day ? 'on' : ''} ${s < t ? 'past' : ''}"
+      h += `<div class="pcal-d ${(tn + dn + pn) ? 'has' : ''} ${s === t ? 'today' : ''} ${s === this._day ? 'on' : ''} ${s < t ? 'past' : ''}"
               onclick="Plan.pickDay('${s}')"><span class="pn">${d}</span>${dots}</div>`;
     }
     h += '</div>';
+    h += `<div class="pcal-legend">
+        <span><i class="pdot todo" style="background:#d29922"></i>待办</span>
+        <span><i class="pdot done" style="background:#3fb950;opacity:.55"></i>已办</span>
+        <span><i class="pdot plan" style="background:var(--accent)"></i>行程</span>
+      </div>`;
 
-    /* 选中那天的明细 */
-    const sel = this._day, items = byDay[sel] || [];
+    /* 选中那天的明细：待办一组（能勾）、行程一组 */
+    const sel = this._day, items = byDay[sel] || [], tds = todoBy[sel] || [];
     h += `<div class="pday">
-        <div class="pday-h"><span>${this.dayLabel(sel)} · ${items.length} 项</span>
-          <button class="btn ghost" onclick="Plan.addTo('${sel}')">＋ 给这天加一项</button></div>`;
-    h += items.length
-      ? items.map(p => this.dayRow(p)).join('')
-      : `<div class="empty" style="padding:12px 0">这天没有单独安排${daily.length ? '，每天重复的 ' + daily.length + ' 项照常做' : ''}</div>`;
+        <div class="pday-h"><span>${this.dayLabel(sel)} · 待办 ${tds.length} ＋ 行程 ${items.length}</span>
+          <span class="btns">
+            <button class="btn ghost" onclick="Todo.addTo('${sel}')">＋ 待办</button>
+            <button class="btn ghost" onclick="Plan.addTo('${sel}')">＋ 行程</button>
+          </span></div>`;
+    if (tds.length){
+      h += `<div class="pday-sub">✅ 待办 · ${tds.length} 项（点方框直接勾掉）</div>`;
+      h += tds.map(x => this.dayTodoRow(x)).join('');
+    }
+    if (items.length){
+      h += `<div class="pday-sub">📅 行程 · ${items.length} 项</div>`;
+      h += items.map(p => this.dayRow(p)).join('');
+    }
+    if (!tds.length && !items.length){
+      h += `<div class="empty" style="padding:12px 0">这天没有安排${daily.length ? '，每天重复的 ' + daily.length + ' 项照常做' : ''}</div>`;
+    }
     h += '</div>';
 
     /* 每天重复的放最后，勾选状态照常按天记 */
