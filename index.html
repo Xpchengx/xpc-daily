@@ -166,6 +166,15 @@ select{appearance:none;-webkit-appearance:none}
 .note-edit{margin:0 0 10px}
 .note-edit textarea{width:100%;min-height:66px;font-size:16px}
 .note-edit .row{margin-top:8px}
+/* 责任人补录：建的时候没填，之后也要能分派——没分派时按钮是淡的 */
+.item .own-btn{background:none;border:none;color:var(--text-dim);font-size:15px;padding:0 4px;flex-shrink:0;opacity:.45}
+.item .own-btn:active{opacity:1}
+.item .own-btn.on{opacity:1;color:var(--accent)}
+.own-edit{margin:0 0 10px}
+.own-edit input{width:100%;font-size:16px}
+.own-edit .row{margin-top:8px}
+.pday-item .own-btn{background:none;border:none;color:var(--text-dim);font-size:14px;padding:0 2px;flex-shrink:0;opacity:.45}
+.pday-item .own-btn.on{opacity:1;color:var(--accent)}
 /* 责任人筛选条 */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .chip{
@@ -1911,6 +1920,42 @@ const Todo = {
       : '';
   },
 
+  /* ── 责任人：后期补录 ──
+     建的时候不知道该给谁，就先留空；之后随时点 👤 补上或改派。
+     留空 = 未分配，待办页的「未分配」筛选能一次捞出这些。 */
+  toggleOwner(id){
+    this._owner = this._owner === id ? null : id;
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+    if (typeof Plan !== 'undefined') Plan.render();
+  },
+
+  /** 同样不能用 getElementById：今天页和待办页会各渲染一个编辑框。
+      从点的按钮往上找它自己那一个（跟 saveNote 同一个坑）。 */
+  saveOwner(id, btn){
+    const box = btn && btn.closest ? btn.closest('.own-edit') : null;
+    const el = box ? box.querySelector('input') : null;
+    const v = (el && el.value ? el.value : '').trim();
+    Store.upsert('todo', { id, owner: v });
+    this._owner = null;
+    UI.toast(v ? `已分给 ${v}` : '已取消分派');
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+    if (typeof Plan !== 'undefined') Plan.render();
+  },
+
+  ownerHtml(x){
+    if (this._owner !== x.id) return '';
+    return `<div class="own-edit">
+      <input class="own-in" list="ownerList" value="${Util.esc(x.owner || '')}"
+             placeholder="谁来推进？填名字；留空 = 不分派">
+      <div class="row">
+        <button class="btn" onclick="Todo.saveOwner('${x.id}', this)">分派</button>
+        <button class="btn ghost" onclick="Todo.toggleOwner('${x.id}')">取消</button>
+      </div>
+    </div>`;
+  },
+
   toggle(id){
     const it = this.all().find(x => x.id === id);
     if (!it) return;
@@ -1951,9 +1996,11 @@ const Todo = {
         ${x.done ? `<span class="tag span">${Util.esc(this.span(x))}</span>` : ''}
         ${(late && !x.done && !hasNote) ? `<span class="tag late" style="cursor:pointer" onclick="Todo.toggleNote('${x.id}')">记一笔为什么没做</span>` : ''}
       </span>
+      <button class="own-btn ${x.owner ? 'on' : ''}" onclick="Todo.toggleOwner('${x.id}')"
+              title="${x.owner ? '改责任人：' + Util.esc(x.owner) : '还没分派 · 点这里指定'}">👤</button>
       <button class="note-btn" onclick="Todo.toggleNote('${x.id}')" title="${hasNote ? '改备注' : '记一笔为什么没做'}">💬</button>
       <button class="del" onclick="Todo.del('${x.id}')">✕</button>
-    </div>` + this.noteHtml(x);
+    </div>` + this.ownerHtml(x) + this.noteHtml(x);
   },
 
   render(){
@@ -2130,7 +2177,37 @@ const Plan = {
         <span class="tag date ${past ? 'past' : ''}">📅 ${label}${past ? ' 已过' : ''}</span>
         ${p.owner ? `<span class="tag owner">👤 ${Util.esc(p.owner)}</span>` : ''}
       </span>
+      <button class="own-btn ${p.owner ? 'on' : ''}" onclick="Plan.toggleOwner('${p.id}')"
+              title="${p.owner ? '改责任人：' + Util.esc(p.owner) : '还没分派 · 点这里指定'}">👤</button>
       <button class="del" onclick="Plan.del('${p.id}')">✕</button>
+    </div>` + this.ownerHtml(p);
+  },
+
+  /* ── 责任人：后期补录（和待办同一套，建的时候没填也能补） ── */
+  toggleOwner(id){
+    this._owner = this._owner === id ? null : id;
+    this.render();
+  },
+
+  saveOwner(id, btn){
+    const box = btn && btn.closest ? btn.closest('.own-edit') : null;
+    const el = box ? box.querySelector('input') : null;
+    const v = (el && el.value ? el.value : '').trim();
+    Store.upsert('plan', { id, owner: v });
+    this._owner = null;
+    UI.toast(v ? `已分给 ${v}` : '已取消分派');
+    this.render();
+  },
+
+  ownerHtml(p){
+    if (this._owner !== p.id) return '';
+    return `<div class="own-edit">
+      <input class="own-in" list="planOwnerList" value="${Util.esc(p.owner || '')}"
+             placeholder="谁来推进？填名字；留空 = 不分派">
+      <div class="row">
+        <button class="btn" onclick="Plan.saveOwner('${p.id}', this)">分派</button>
+        <button class="btn ghost" onclick="Plan.toggleOwner('${p.id}')">取消</button>
+      </div>
     </div>`;
   },
 
@@ -2149,8 +2226,10 @@ const Plan = {
         ${x.done && Todo.span(x) ? `<span class="tag span">${Util.esc(Todo.span(x))}</span>` : ''}
         ${(x.note || '').trim() ? `<span class="tag">💬 ${Util.esc(x.note)}</span>` : ''}
       </span>
+      <button class="own-btn ${x.owner ? 'on' : ''}" onclick="Todo.toggleOwner('${x.id}')"
+              title="${x.owner ? '改责任人：' + Util.esc(x.owner) : '还没分派 · 点这里指定'}">👤</button>
       <button class="pdl" onclick="Todo.del('${x.id}')">✕</button>
-    </div>`;
+    </div>` + Todo.ownerHtml(x);
   },
 
   /** 日历里那一行：只读展示（勾选状态是按天记的，翻看别的日子不该动它） */
@@ -2160,8 +2239,10 @@ const Plan = {
       <span class="pg">${Util.esc(p.text)}
         ${p.owner ? `<span class="tag owner">👤 ${Util.esc(p.owner)}</span>` : ''}
       </span>
+      <button class="own-btn ${p.owner ? 'on' : ''}" onclick="Plan.toggleOwner('${p.id}')"
+              title="${p.owner ? '改责任人：' + Util.esc(p.owner) : '还没分派 · 点这里指定'}">👤</button>
       <button class="pdl" onclick="Plan.del('${p.id}')">✕</button>
-    </div>`;
+    </div>` + this.ownerHtml(p);
   },
 
   dayLabel(s){
