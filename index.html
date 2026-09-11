@@ -148,8 +148,25 @@ select{appearance:none;-webkit-appearance:none}
 .row .btn{flex-shrink:0}
 
 /* ==== 列表 ==== */
-.item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line);
+  -webkit-touch-callout:none;user-select:none}
+.item input,.item textarea{user-select:text;-webkit-user-select:text}
 .item:last-child{border-bottom:none}
+/* ── 拖动排序（P1/P2/P3 组内手排） ── */
+.item.dragging{
+  position:relative;z-index:30;
+  background:var(--card);border-radius:10px;border-bottom-color:transparent;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);
+  transition:none;
+}
+.item.drag-src{opacity:.28}
+#todoOpen{position:relative}
+.drop-line{position:absolute;left:0;right:0;height:2px;background:var(--accent);border-radius:2px;
+  pointer-events:none;box-shadow:0 0 8px var(--accent);z-index:25}
+.drag-tip{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:80;
+  background:rgba(20,27,35,.95);border:1px solid var(--line);border-radius:20px;
+  padding:8px 16px;font-size:13px;color:var(--text-dim);opacity:0;transition:opacity .18s;pointer-events:none}
+.drag-tip.on{opacity:1}
 .item .grow{flex:1;min-width:0;font-size:16px;line-height:1.7}
 .item .del{color:var(--text-dim);font-size:16px;background:none;border:none;padding:0 4px;flex-shrink:0}
 /* 备注按钮 + 备注行（记录"为什么没做完"） */
@@ -173,6 +190,15 @@ select{appearance:none;-webkit-appearance:none}
 .own-edit{margin:0 0 10px}
 .own-edit input{width:100%;font-size:16px}
 .own-edit .row{margin-top:8px}
+/* ── 复盘页：三个数 + 完成率条 ── */
+.rstat{display:flex;gap:10px;margin-bottom:14px}
+.rstat>div{flex:1;background:#111920;border:1px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center}
+.rstat b{display:block;font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15}
+.rstat b.ok{color:#3fb950}
+.rstat b.bad{color:#d29922}
+.rstat span{font-size:12px;color:var(--text-dim)}
+.rbar{height:6px;border-radius:4px;background:var(--line);overflow:hidden}
+.rbar i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .25s}
 .pday-item .own-btn{background:none;border:none;color:var(--text-dim);font-size:14px;padding:0 2px;flex-shrink:0;opacity:.45}
 .pday-item .own-btn.on{opacity:1;color:var(--accent)}
 /* 责任人筛选条 */
@@ -466,14 +492,21 @@ select{appearance:none;-webkit-appearance:none}
       </div>
       <div data-fold="c6" class="card wide" data-page-node-id="HLswLCWjeuHEH6Dzc6SjNw">
         <h2 data-page-node-id="MRyvgbLoVfjBHWQUKjq672">📋 进行中
-          <button class="btn ghost" style="margin-left:auto;font-size:12px;padding:4px 10px"
-                  onclick="Plan.openCal()">📅 看日历</button></h2>
+          <span style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn ghost" style="font-size:12px;padding:4px 10px"
+                    onclick="Todo.resetOrder()" title="清掉手动顺序，回到「拖得久的在前」">↺ 按规则排</button>
+            <button class="btn ghost" style="font-size:12px;padding:4px 10px"
+                    onclick="Plan.openCal()" title="在日历里看哪天有什么事">📅 日历</button>
+          </span></h2>
         <div id="todoOpen" data-page-node-id="H7OY9sJLZ3AR80IXcYCuDK"></div>
+        <p class="hint" style="margin-top:10px">排在最前的是 P1，往后是 P2、P3。<b>按住一条左侧空白处不动约 0.3 秒</b>就能拖动，
+          顺序会记住 —— 但只能在同一个优先级里换位。点「↺ 按规则排」随时回到自动顺序。</p>
       </div>
       <div data-fold="c7" class="card wide" data-page-node-id="sojPp9uNBMdMV3BL9dWjbM">
-        <h2 data-page-node-id="zDdfZuF9JcjiG0au8Mua4t">🎉 已完成</h2>
+        <h2 data-page-node-id="zDdfZuF9JcjiG0au8Mua4t">🎉 今天完成的</h2>
         <div id="todoDone" data-page-node-id="IiB04DDCbalerkr27jC0cO"></div>
-        <p class="hint" id="todoStat" data-page-node-id="hNG5uhzGDgD0ZKtqcqyjoF"></p>
+        <p class="hint" id="todoDoneMore"></p>
+        <p class="hint" id="todoStat" data-page-node-id="hNG5uhzDGgD0ZKtqcqyjoF"></p>
       </div>
     </section>
     <!-- ==== 功能：待办 END ==== -->
@@ -573,19 +606,42 @@ select{appearance:none;-webkit-appearance:none}
     </section>
     <!-- ==== 功能：文档 END ==== -->
 
-    <!-- ==== 功能：周复盘 START ==== -->
+    <!-- ==== 功能：复盘（日报） START ==== -->
     <section class="page" id="page-recap" data-page-node-id="GDE4AgGWXPYPm1pmj1ps9Z">
-      <div class="page-title" data-page-node-id="sQpNgMsOezVHhdMR9fesMU">这一周</div>
-      <div class="page-sub" data-page-node-id="52gz6CW5FmusOY9xUjCyEK">周日晚上看一眼，比任何提醒都管用</div>
+      <div class="page-title" data-page-node-id="sQpNgMsOezVHhdMR9fesMU">复盘</div>
+      <div class="page-sub" data-page-node-id="52gz6CW5FmusOY9xUjCyEK">每天一分钟，把没做完的写清楚</div>
+
       <div data-fold="c16" class="card wide" data-page-node-id="XrC270aBD755D0LHSLBFbl">
+        <h2>📊 这一天的账
+          <span class="btns">
+            <button class="pcal-nav" onclick="Recap.move(-1)" title="前一天">‹</button>
+            <b id="recapDate" style="font-size:13px;min-width:104px;text-align:center"></b>
+            <button class="pcal-nav" onclick="Recap.move(1)" title="后一天">›</button>
+          </span></h2>
         <div id="recapBody" data-page-node-id="ohCDeDISNRNzkuh2CzagsH"></div>
-        <div class="row" style="margin-top:18px" data-page-node-id="xaF13nxgFfmaQAR20gfzNk">
+        <div class="row" style="margin-top:16px" data-page-node-id="xaF13nxgFfmaQAR20gfzNk">
           <button class="btn" onclick="Recap.makeCard()" data-page-node-id="ZkGC9Ey0IxpTpBXphsrw3W">生成图卡</button>
+          <button class="btn ghost" onclick="Recap.toToday()">回到今天</button>
         </div>
-        <p class="hint" data-page-node-id="uI6C9tIkFlAK4AlGFgRwnY">生成一张能存下来的图，想发就发。图上只有汇总数字，不含你的具体记录内容。</p>
+        <p class="hint" data-page-node-id="uI6C9tIkFlAK4AlGFgRwnY">图卡只有数字，不含你的具体记录内容。</p>
+      </div>
+
+      <div data-fold="c25" class="card wide">
+        <h2>⚠️ 这天没做完的</h2>
+        <div id="recapLeft"></div>
+      </div>
+
+      <div data-fold="c26" class="card wide">
+        <h2>✅ 这天做完的</h2>
+        <div id="recapDone"></div>
+      </div>
+
+      <div data-fold="c27" class="card wide">
+        <h2>📈 最近 7 天</h2>
+        <div id="recapWeek"></div>
       </div>
     </section>
-    <!-- ==== 功能：周复盘 END ==== -->
+    <!-- ==== 功能：复盘（日报） END ==== -->
 
     <!-- ==== 功能：设置 START ==== -->
     <section class="page" id="page-settings" data-page-node-id="GQBHVTXVr2z9OLIRtly70q">
@@ -1022,6 +1078,21 @@ const UI = {
     clearTimeout(this._t);
     this._t = setTimeout(() => t.classList.remove('on'), 2200);
   },
+  /** 拖动时贴在底部的常驻提示（比 toast 好：toast 两秒就没了，拖到一半会看不到） */
+  tip(msg){
+    let el = document.getElementById('dragTip');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'dragTip'; el.className = 'drag-tip';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('on');
+  },
+  tipOff(){
+    const el = document.getElementById('dragTip');
+    if (el) el.classList.remove('on');
+  },
   banner(html, pageId){
     const box = document.createElement('div');
     box.className = 'banner';
@@ -1204,10 +1275,51 @@ const GistSync = {
 
 
 /* ═══════════════════════════════════════════════════════════
-   Recap · 周复盘（默认功能，别删）
+   Recap · 复盘（默认功能，别删）
+
+   机制：每天问三个数 —— 今天新来了几件、做完几件、还欠几件。
+   欠下的每一条都能当场写下「为什么没做完」，写进任务本身的备注，
+   所以待办页、今天页、日历里都看得到同一句话。
+   没做完的第二天靠「跨天顺延」自动回到「今天」，不需要额外做提醒。
+
+   为什么不用存快照：todo 里有 createdAt / doneAt，任意一天的数字都能
+   实时算出来，改数据不会出现「日报和实际对不上」。
    ═══════════════════════════════════════════════════════════ */
 const Recap = {
-  collect(){
+  _d: '',                                   // 正在看哪一天（空 = 今天）
+
+  date(){ return this._d || Util.today(); },
+
+  toToday(){ this._d = Util.today(); Haptics.tick(10); this.render(); },
+
+  move(n){
+    const d = new Date(this.date() + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    const s = Util.dateOf(d);
+    if (s > Util.today()) return;           // 明天还没发生，不让往后翻
+    this._d = s;
+    Haptics.tick(10);
+    this.render();
+  },
+
+  /** 某一天的三个数（任意一天都能算，翻回上周三也行）
+      created 那天新建了几件 / done 那天做完几件 / left 那天结束时还欠着几件 */
+  stats(date){
+    const all = Store.list('todo');
+    const dayOf = ts => ts ? Util.dateOf(new Date(ts)) : '';
+    const created = all.filter(x => dayOf(x.createdAt) === date).length;
+    const doneList = all.filter(x => x.done && dayOf(x.doneAt) === date);
+    const left = all.filter(x => {
+      const c = dayOf(x.createdAt);
+      if (!c || c > date) return false;      // 那天还没建出来
+      if (!x.done) return true;              // 到今天还欠着
+      return dayOf(x.doneAt) > date;         // 那天之后才补完
+    });
+    return { created, done: doneList.length, left, doneList };
+  },
+
+  /** 最近 7 天：每天的完成数 + 连续有完成的天数 */
+  week(){
     const days = [], now = new Date();
     const dow = (now.getDay() + 6) % 7;
     for (let i = 0; i < 7; i++){
@@ -1216,7 +1328,6 @@ const Recap = {
     }
     const doneList = Store.list('todo').filter(t => t.done && t.doneAt);
     const dayOf = t => Util.dateOf(new Date(t.doneAt));
-    const done = doneList.filter(t => days.includes(dayOf(t))).length;
     const per = days.map(d => doneList.filter(t => dayOf(t) === d).length);
     let streak = 0;
     for (let i = 0; i < 400; i++){
@@ -1224,27 +1335,76 @@ const Recap = {
       if (doneList.some(t => dayOf(t) === Util.dateOf(d))) streak++;
       else if (i > 0) break;
     }
-    return { days, done, per, streak, from: days[0], to: days[6] };
+    return { days, per, streak, from: days[0], to: days[6] };
   },
 
   render(){
-    const r = this.collect();
-    const el = document.getElementById('recapBody');
-    if (!el) return;
-    const cells = r.per.map((n, i) =>
-      `<div style="flex:1;text-align:center">
-         <div style="height:44px;border-radius:10px;background:${n ? 'var(--accent)' : 'var(--line)'};
-              opacity:${n ? Math.min(1, .45 + n * .18) : 1}"></div>
-         <div style="font-size:11px;color:var(--text-dim);margin-top:6px">${'一二三四五六日'[i]}</div>
-       </div>`).join('');
-    el.innerHTML = `
-      <div class="hero">${r.done}<span class="unit">件事做完了</span></div>
-      <p class="hint" style="margin-bottom:18px">${r.from} 到 ${r.to} · 连续有完成 ${r.streak} 天</p>
-      <div style="display:flex;gap:8px">${cells}</div>`;
+    const date = this.date(), t = Util.today();
+    const s = this.stats(date);
+    const isToday = date === t;
+
+    const dl = document.getElementById('recapDate');
+    if (dl){
+      const d = new Date(date + 'T00:00:00');
+      dl.textContent = isToday ? '今天' : `${d.getMonth() + 1} 月 ${d.getDate()} 日 周${'日一二三四五六'[d.getDay()]}`;
+    }
+
+    /* 三个数 + 完成率 */
+    const total = s.done + s.left.length;
+    const rate = total ? Math.round(s.done / total * 100) : 0;
+    const body = document.getElementById('recapBody');
+    if (body){
+      body.innerHTML = `
+        <div class="rstat">
+          <div><b>${s.created}</b><span>新增</span></div>
+          <div><b class="ok">${s.done}</b><span>完成</span></div>
+          <div><b class="${s.left.length ? 'bad' : ''}">${s.left.length}</b><span>没做完</span></div>
+        </div>
+        <div class="rbar"><i style="width:${rate}%"></i></div>
+        <p class="hint" style="margin:10px 0 0">
+          ${total ? `这天手上 ${total} 件，做完 ${s.done} 件 · 完成率 ${rate}%` : '这天没有任务记录'}
+          ${isToday ? '（今天还没过完，数字还会变）' : ''}
+        </p>`;
+    }
+
+    /* 没做完的：能写原因（存进任务备注），也能顺手勾掉 */
+    const leftBox = document.getElementById('recapLeft');
+    if (leftBox){
+      leftBox.innerHTML = s.left.length
+        ? s.left.slice().sort((a, b) => Todo.cmp(a, b)).map(x => Todo.row(x)).join('')
+          + `<p class="hint" style="margin-top:10px">点 💬 写下为什么没做完 —— 存进这条任务本身，
+             待办页、今天页、日历里都看得到。<br>
+             ${isToday ? '它们明天会自动出现在「今天」，继续提醒你。'
+                       : '这些从第二天起会自动出现在「今天」，直到做完为止。'}</p>`
+        : '<div class="empty">这天没有欠下的活</div>';
+    }
+
+    /* 做完的 */
+    const doneBox = document.getElementById('recapDone');
+    if (doneBox){
+      doneBox.innerHTML = s.doneList.length
+        ? s.doneList.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(x => Todo.row(x)).join('')
+        : '<div class="empty">这天没有完成记录</div>';
+    }
+
+    /* 最近 7 天 */
+    const wk = this.week();
+    const wkBox = document.getElementById('recapWeek');
+    if (wkBox){
+      const max = Math.max(1, ...wk.per);
+      const cells = wk.per.map((n, i) =>
+        `<div style="flex:1;text-align:center">
+           <div style="height:44px;border-radius:10px;background:${n ? 'var(--accent)' : 'var(--line)'};
+                opacity:${n ? Math.min(1, .45 + n / max * .55) : 1}"></div>
+           <div style="font-size:11px;color:var(--text-dim);margin-top:6px">${'一二三四五六日'[i]}</div>
+         </div>`).join('');
+      wkBox.innerHTML = `<div style="display:flex;gap:8px">${cells}</div>
+        <p class="hint" style="margin:10px 0 0">${wk.from} 到 ${wk.to} · 连续有完成 ${wk.streak} 天</p>`;
+    }
   },
 
   async makeCard(){
-    const r = this.collect();
+    const date = this.date(), s = this.stats(date), wk = this.week();
     const cs = getComputedStyle(document.documentElement);
     const v = n => cs.getPropertyValue(n).trim();
     const W = 1080, H = 1350, cv = document.createElement('canvas');
@@ -1258,25 +1418,33 @@ const Recap = {
     if (g.roundRect){ g.beginPath(); g.roundRect(pad, 180, cw, 900, 40); g.fill(); }
     else g.fillRect(pad, 180, cw, 900);
 
+    const dt = new Date(date + 'T00:00:00');
     g.fillStyle = v('--accent') || '#58a6ff';
     g.font = font(30, 500);
-    g.fillText('这一周', pad + 56, 300);
+    g.fillText('这一天的账', pad + 56, 296);
 
     g.fillStyle = v('--text') || '#d7dfe8';
-    g.font = font(190, 500);
-    g.fillText(String(r.done), pad + 56, 480);
-    g.font = font(38);
-    g.fillStyle = v('--text-dim') || '#93a1b1';
-    g.fillText('件事做完了', pad + 56 + g.measureText(String(r.done)).width + 210, 480);
-
     g.font = font(34);
-    g.fillText(`${r.from}  —  ${r.to}`, pad + 56, 560);
+    g.fillText(`${dt.getFullYear()} 年 ${dt.getMonth() + 1} 月 ${dt.getDate()} 日`, pad + 56, 372);
 
-    const bw = 96, gap = 24, y = 660;
+    g.font = font(140, 500);
+    g.fillText(String(s.done), pad + 56, 540);
+    const wDone = g.measureText(String(s.done)).width;
+    g.font = font(36);
+    g.fillStyle = v('--text-dim') || '#93a1b1';
+    g.fillText('件做完了', pad + 56 + wDone + 26, 540);
+
+    const total = s.done + s.left.length;
+    const rate = total ? Math.round(s.done / total * 100) : 0;
+    g.font = font(32);
+    g.fillText(`新增 ${s.created} · 没做完 ${s.left.length} · 完成率 ${rate}%`, pad + 56, 630);
+
+    const bw = 96, gap = 24, y = 720;
+    const maxN = Math.max(1, ...wk.per);
     for (let i = 0; i < 7; i++){
-      const n = r.per[i];
+      const n = wk.per[i];
       g.fillStyle = n ? (v('--accent') || '#58a6ff') : (v('--line') || '#273243');
-      g.globalAlpha = n ? Math.min(1, 0.35 + n * 0.18) : 1;
+      g.globalAlpha = n ? Math.min(1, 0.35 + n / maxN * 0.65) : 1;
       const x = pad + 56 + i * (bw + gap);
       if (g.roundRect){ g.beginPath(); g.roundRect(x, y, bw, bw, 26); g.fill(); }
       else g.fillRect(x, y, bw, bw);
@@ -1287,8 +1455,8 @@ const Recap = {
     }
 
     g.fillStyle = v('--text') || '#d7dfe8';
-    g.font = font(46, 500);
-    g.fillText(`连续有完成 ${r.streak} 天`, pad + 56, 900);
+    g.font = font(42, 500);
+    g.fillText(`连续有完成 ${wk.streak} 天`, pad + 56, 940);
 
     g.fillStyle = v('--text-dim') || '#93a1b1';
     g.font = font(26);
@@ -1299,7 +1467,7 @@ const Recap = {
     cv.toBlob(b => {
       const url = URL.createObjectURL(b);
       const a = document.createElement('a');
-      a.href = url; a.download = `这一周-${r.to}.png`;
+      a.href = url; a.download = `复盘-${date}.png`;
       a.click();
       setTimeout(() => { URL.revokeObjectURL(url); UI.toast('图卡已保存到下载目录'); }, 800);
     }, 'image/png');
@@ -1707,6 +1875,16 @@ const Todo = {
   all(){ return Store.list('todo'); },
   open(){ return Store.list('todo').filter(t => !t.done); },
 
+  /** 一条待办变了之后，所有会显示它的地方都要重画：
+      待办页 / 今天页 / 计划日历 / 复盘页 —— 四处都拿同一个数据源。
+      统一走这里，免得以后加一处显示就漏掉刷新。 */
+  refresh(){
+    this.render();
+    if (typeof Today !== 'undefined') Today.render();
+    if (typeof Plan !== 'undefined') Plan.render();
+    if (typeof Recap !== 'undefined') Recap.render();
+  },
+
   /** 今天该做的：due 已到或已过期、且没完成 */
   dueToday(){
     const t = Util.today();
@@ -1754,15 +1932,34 @@ const Todo = {
     return map;
   },
 
-  /** 排序：拖得久的在前 → 优先级 → 时间 → 创建顺序 */
+  /** 排序（和用户确认过的规则）：
+      1. 优先级：P1 → P2 → P3（大顺序由优先级决定，拖动也跨不过去）
+      2. 同优先级内：
+         · 手里拖过的（有 ord）→ 按你拖出来的顺序
+         · 没拖过 → 老规则：拖得久的在前 → 时间 → 创建顺序
+      3. 有 ord 的排在没 ord 的前面：所以你手动排过之后，新加的任务默认落在末尾，
+         想提前就把它拖上去；想完全回到自动，点「↺ 按规则排」。 */
   cmp(a, b){
-    const la = this.late(a), lb = this.late(b);
-    if (la !== lb) return lb - la;
     const pa = a.pri || 2, pb = b.pri || 2;
     if (pa !== pb) return pa - pb;
+    const ha = typeof a.ord === 'number', hb = typeof b.ord === 'number';
+    if (ha && hb) return (a.ord - b.ord) || ((a.createdAt || 0) - (b.createdAt || 0));
+    if (ha !== hb) return ha ? -1 : 1;
+    const la = this.late(a), lb = this.late(b);
+    if (la !== lb) return lb - la;
     const ta = a.time || '99:99', tb = b.time || '99:99';
     if (ta !== tb) return ta < tb ? -1 : 1;
     return (a.createdAt || 0) - (b.createdAt || 0);
+  },
+
+  /** 清掉手动顺序，回到自动规则 */
+  resetOrder(){
+    const list = this.all().filter(x => !x.done && typeof x.ord === 'number');
+    if (!list.length){ UI.toast('现在就是自动顺序'); return; }
+    for (const x of list) Store.upsert('todo', { id: x.id, ord: null });
+    Haptics.tick(14);
+    UI.toast('已按规则重排');
+    this.refresh();
   },
 
   /** 完成后回看：挂了几天、其中拖了几天 */
@@ -1885,8 +2082,7 @@ const Todo = {
      顺延多天的任务最需要它，所以今日页也用同一个 row()，备注跟着走。 */
   toggleNote(id){
     this._note = this._note === id ? null : id;
-    this.render();
-    if (typeof Today !== 'undefined') Today.render();
+    this.refresh();
   },
 
   /** ⚠️ 同一条待办会在「今天」和「待办」两页各渲染一次（共用 row），
@@ -1900,8 +2096,7 @@ const Todo = {
     Store.upsert('todo', { id, note: v, noteAt: Date.now() });
     this._note = null;
     UI.toast(v ? '记下了' : '备注已清空');
-    this.render();
-    if (typeof Today !== 'undefined') Today.render();
+    this.refresh();
   },
 
   noteHtml(x){
@@ -1925,9 +2120,7 @@ const Todo = {
      留空 = 未分配，待办页的「未分配」筛选能一次捞出这些。 */
   toggleOwner(id){
     this._owner = this._owner === id ? null : id;
-    this.render();
-    if (typeof Today !== 'undefined') Today.render();
-    if (typeof Plan !== 'undefined') Plan.render();
+    this.refresh();
   },
 
   /** 同样不能用 getElementById：今天页和待办页会各渲染一个编辑框。
@@ -1939,9 +2132,7 @@ const Todo = {
     Store.upsert('todo', { id, owner: v });
     this._owner = null;
     UI.toast(v ? `已分给 ${v}` : '已取消分派');
-    this.render();
-    if (typeof Today !== 'undefined') Today.render();
-    if (typeof Plan !== 'undefined') Plan.render();
+    this.refresh();
   },
 
   ownerHtml(x){
@@ -1962,18 +2153,13 @@ const Todo = {
     const done = !it.done;
     Store.upsert('todo', { id, done, doneAt: done ? Date.now() : null });
     if (done){ UI.toast('搞定一件'); Haptics.tick(16); }
-    this.render();
-    if (typeof Today !== 'undefined') Today.render();
-    /* 勾完要同步日历：做完的会从「橙点」变成「绿点」并挪到今天 */
-    if (typeof Plan !== 'undefined') Plan.render();
+    this.refresh();
   },
 
   del(id){
     if (!confirm('删掉这条？')) return;
     Store.softDelete('todo', id);
-    this.render();
-    if (typeof Today !== 'undefined') Today.render();
-    if (typeof Plan !== 'undefined') Plan.render();
+    this.refresh();
   },
 
   row(x){
@@ -1984,7 +2170,8 @@ const Todo = {
     const over = !x.done && x.time && x.time <= Util.hm();
     const pri = x.pri || 2;
     const hasNote = !!(x.note && x.note.trim());
-    return `<div class="item ${x.done ? 'done' : ''} ${hasNote ? 'has-note' : ''}">
+    return `<div class="item ${x.done ? 'done' : ''} ${hasNote ? 'has-note' : ''}"
+                 data-id="${x.id}" data-pri="${pri}">
       <span class="box" onclick="Todo.toggle('${x.id}')">${x.done ? '✓' : ''}</span>
       <span class="time">${x.time ? Util.esc(x.time) : ''}</span>
       <span class="grow">${Util.esc(x.text)}
@@ -2007,8 +2194,12 @@ const Todo = {
     this.initTime();
     this.renderOwnerBar();
     const open = this.open().filter(x => this.matchFilter(x)).sort((a, b) => this.cmp(a, b));
-    const done = this.all().filter(x => x.done && this.matchFilter(x))
-      .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 20);
+    /* 已完成这里只留「今天勾掉的」——这一页管的是当下。
+       历史完成记录和统计都在复盘页按天看，不再往这里堆。 */
+    const t = Util.today();
+    const done = this.all()
+      .filter(x => x.done && x.doneAt && this.matchFilter(x) && Util.dateOf(new Date(x.doneAt)) === t)
+      .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
 
     const who = this._filter === '__none__' ? '未分配的' : (this._filter ? `「${Util.esc(this._filter)}」名下` : '');
     document.getElementById('todoOpen').innerHTML = open.length
@@ -2017,10 +2208,17 @@ const Todo = {
 
     document.getElementById('todoDone').innerHTML = done.length
       ? done.map(x => this.row(x)).join('')
-      : `<div class="empty">${who ? who + '还没有完成记录' : '还没有完成记录'}</div>`;
+      : `<div class="empty">${who ? who + '今天还没有完成记录' : '今天还没有完成记录'}</div>`;
+    const more = document.getElementById('todoDoneMore');
+    if (more){
+      const older = this.all().filter(x => x.done && x.doneAt && Util.dateOf(new Date(x.doneAt)) !== t).length;
+      more.textContent = older ? `更早的 ${older} 条完成记录已收进复盘页，按天统计。` : '';
+    }
 
     const el = document.getElementById('todoStat');
     if (el) el.textContent = this.stat();
+    /* 排序拖拽（只绑一次） */
+    if (typeof Drag !== 'undefined'){ Drag.bind(); if (this._filter) Drag.cancel(); }
   },
 
   stat(){
@@ -2033,6 +2231,181 @@ const Todo = {
   }
 };
 /* ==== 功能：待办 END ==== */
+
+
+/* ==== 功能：拖动排序 START ====
+   为什么自己写：手机浏览器不支持 HTML5 的 drag&drop（那是桌面端的东西），
+   所以只能用 touch/mouse 事件自己实现。
+
+   交互：按住一条约 0.28 秒激活（不这样做的话会和页面滚动抢手势）。
+   激活前如果手指先动了，判定为「用户想滚动」，直接放弃拖动 —— 所以正常
+   上下滑列表不会误触发。
+
+   约束：只能在同一个优先级里换位。跨过 P1/P2 的边界会被钳回去，
+   因为优先级才是大顺序。
+   松手后把这一组的 ord 写成 0,1,2…，只改 ord 不改别的，双端合并不会打架。 */
+const Drag = {
+  on: false, el: null, items: [], rects: [], si: 0, ti: 0, lo: 0, hi: 0,
+  pri: 2, y0: 0, boxTop: 0, timer: null, pending: null, line: null,
+
+  bind(){
+    const box = document.getElementById('todoOpen');
+    if (!box || box._dragBound) return;
+    box._dragBound = true;
+    box.addEventListener('touchstart', e => this.ts(e), { passive: false });
+    box.addEventListener('touchmove', e => this.tm(e), { passive: false });
+    box.addEventListener('touchend', () => this.up());
+    box.addEventListener('touchcancel', () => this.cancel());
+    box.addEventListener('mousedown', e => this.md(e));
+    document.addEventListener('mousemove', e => this.mm(e));
+    document.addEventListener('mouseup', () => { if (this.on) this.up(); });
+    window.addEventListener('blur', () => this.cancel());
+  },
+
+  /** 在一行上按下：先挂个计时器等长按。点按钮/勾选框/标签的不算。 */
+  _press(target, x, y, el){
+    if (this.on) return false;
+    if (Todo._filter) return false;      // 筛选后列表是子集，顺序有歧义，先不拖
+    if (!el) return false;
+    if (target && target.closest && target.closest('button,input,textarea,select,a,.box,.tag,.note-line')) return false;
+    this.pending = { el, x, y };
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.start(), 280);
+    return true;
+  },
+
+  ts(e){
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    this._press(e.target, t.clientX, t.clientY,
+      e.target && e.target.closest ? e.target.closest('.item') : null);
+  },
+  tm(e){
+    if (this.pending){
+      const t = e.touches[0];
+      if (!t) return;
+      if (Math.abs(t.clientX - this.pending.x) > 10 || Math.abs(t.clientY - this.pending.y) > 10){
+        clearTimeout(this.timer); this.pending = null;   // 用户想滚动，放行
+      }
+      return;
+    }
+    if (!this.on) return;
+    e.preventDefault();          // ← 拖动中把页面滚动掐掉，否则一拖就滚
+    this.apply(e.touches[0].clientY);
+  },
+
+  md(e){
+    if (e.button != null && e.button !== 0) return;
+    const it = e.target && e.target.closest ? e.target.closest('.item') : null;
+    if (!this._press(e.target, e.clientX, e.clientY, it)) return;
+    e.preventDefault();          // 桌面端按住时别选中文本
+  },
+  mm(e){
+    if (this.pending){
+      if (Math.abs(e.clientX - this.pending.x) > 10 || Math.abs(e.clientY - this.pending.y) > 10){
+        clearTimeout(this.timer); this.pending = null;
+      }
+      return;
+    }
+    if (!this.on) return;
+    e.preventDefault();
+    this.apply(e.clientY);
+  },
+
+  start(){
+    const p = this.pending;
+    this.pending = null;
+    if (!p) return;
+    const box = document.getElementById('todoOpen');
+    if (!box) return;
+    const items = [...box.querySelectorAll('.item')];
+    const si = items.indexOf(p.el);
+    if (si < 0) return;
+
+    this.on = true; this.el = p.el; this.items = items; this.si = si; this.ti = si;
+    this.pri = +(p.el.getAttribute('data-pri') || 2);
+    /* 同优先级的项在排序后一定是连续的一段，所以只要往两头扩就行 */
+    this.lo = si;
+    while (this.lo > 0 && items[this.lo - 1].getAttribute('data-pri') === String(this.pri)) this.lo--;
+    this.hi = si;
+    while (this.hi < items.length - 1 && items[this.hi + 1].getAttribute('data-pri') === String(this.pri)) this.hi++;
+
+    this.rects = items.map(el => el.getBoundingClientRect());
+    this.y0 = p.y;
+    this.boxTop = box.getBoundingClientRect().top;
+    this.el.classList.add('dragging');
+    Haptics.tick(18);
+    UI.tip(this.hi > this.lo ? `在 P${this.pri} 里换位置，松手保存` : `P${this.pri} 只有这一条，没得换`);
+
+    this.line = document.createElement('div');
+    this.line.className = 'drop-line';
+    box.appendChild(this.line);
+    this.showLine();
+  },
+
+  /** 跟手指算：拖动这一行的中心落到了谁身上，就插到它前面 */
+  apply(y){
+    const dy = y - this.y0;
+    this.el.style.transform = `translateY(${dy}px)`;
+    const r0 = this.rects[this.si];
+    const cy = r0.top + r0.height / 2 + dy;
+    let ti = this.lo;
+    for (let k = this.lo; k <= this.hi; k++){
+      const r = this.rects[k];
+      if (cy > r.top + r.height / 2) ti = k;
+    }
+    this.ti = Math.max(this.lo, Math.min(this.hi, ti));   // 钳在本优先级区间内
+    this.showLine();
+  },
+
+  showLine(){
+    if (!this.line) return;
+    const r = this.rects[this.ti];
+    if (!r) return;
+    /* 往前插就贴目标的上边，往后插贴下边——看着才是「要落在这」 */
+    const y = (this.ti <= this.si) ? (r.top - this.boxTop) : (r.bottom - this.boxTop);
+    this.line.style.top = Math.round(y) + 'px';
+  },
+
+  up(){
+    clearTimeout(this.timer);
+    this.pending = null;
+    if (!this.on) return;
+    const moved = this.ti !== this.si;
+    const ids = this.items.slice(this.lo, this.hi + 1).map(el => el.getAttribute('data-id'));
+    const from = this.si - this.lo, to = this.ti - this.lo;
+    this.teardown();
+    if (!moved) return;
+    const arr = ids.slice();
+    const mv = arr.splice(from, 1)[0];
+    arr.splice(to, 0, mv);
+    /* 只重写这一组的 ord：0,1,2… 别的字段一个都不碰 */
+    arr.forEach((id, i) => Store.upsert('todo', { id, ord: i }));
+    Haptics.tick(16);
+    UI.toast('顺序已保存');
+    Todo.render();
+    if (typeof Today !== 'undefined') Today.render();
+  },
+
+  cancel(){
+    clearTimeout(this.timer);
+    this.pending = null;
+    if (!this.on) return;
+    this.teardown();
+  },
+
+  teardown(){
+    if (this.el){
+      this.el.classList.remove('dragging');
+      this.el.style.transform = '';
+    }
+    if (this.line && this.line.parentElement) this.line.remove();
+    this.line = null;
+    this.on = false; this.el = null; this.items = []; this.rects = [];
+    UI.tipOff();
+  }
+};
+/* ==== 功能：拖动排序 END ==== */
 
 
 /* ==== 功能：今日 START ====
