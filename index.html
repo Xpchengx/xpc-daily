@@ -254,8 +254,16 @@ select{appearance:none;-webkit-appearance:none}
 .pday-item .pdl{color:var(--text-dim);background:none;border:none;font-size:14px;padding:0 4px;flex-shrink:0}
 /* 日历里待办那一行：能直接勾 */
 .pday-item.t{display:flex;align-items:flex-start;gap:8px}
-.pday-item.t .box{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+.pday-item.t .box{width:18px;height:18px;flex-shrink:0;margin-top:1px;font-size:11px}
+/* 勾掉之后方框要变选中色——之前漏了这条，所以看着像"没打勾" */
+.pday-item.t.done .box{background:var(--accent)}
 .pday-item.t.done .pg{color:var(--text-dim);text-decoration:line-through}
+.pday-item.t.done .pt{opacity:.6}
+/* ── 复盘页折线图 ── */
+.chart-wrap{width:100%;overflow:hidden}
+.chart-wrap svg{display:block;width:100%;height:auto}
+.chart-legend{display:flex;gap:16px;font-size:12px;color:var(--text-dim);margin:2px 0 6px}
+.chart-legend i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .pday-sub{font-size:11px;color:var(--text-dim);margin:6px 0 2px}
 
 /* 选择器：底部弹出面板（时间滚轮 / 日历） */
@@ -637,8 +645,9 @@ select{appearance:none;-webkit-appearance:none}
       </div>
 
       <div data-fold="c27" class="card wide">
-        <h2>📈 最近 7 天</h2>
+        <h2>📈 折线图 · 最近 7 天</h2>
         <div id="recapWeek"></div>
+        <p class="hint" style="margin-top:10px">点这张卡的标题栏可以把图表收起来。</p>
       </div>
     </section>
     <!-- ==== 功能：复盘（日报） END ==== -->
@@ -1387,20 +1396,59 @@ const Recap = {
         : '<div class="empty">这天没有完成记录</div>';
     }
 
-    /* 最近 7 天 */
+    /* 最近 7 天折线图 */
     const wk = this.week();
     const wkBox = document.getElementById('recapWeek');
-    if (wkBox){
-      const max = Math.max(1, ...wk.per);
-      const cells = wk.per.map((n, i) =>
-        `<div style="flex:1;text-align:center">
-           <div style="height:44px;border-radius:10px;background:${n ? 'var(--accent)' : 'var(--line)'};
-                opacity:${n ? Math.min(1, .45 + n / max * .55) : 1}"></div>
-           <div style="font-size:11px;color:var(--text-dim);margin-top:6px">${'一二三四五六日'[i]}</div>
-         </div>`).join('');
-      wkBox.innerHTML = `<div style="display:flex;gap:8px">${cells}</div>
-        <p class="hint" style="margin:10px 0 0">${wk.from} 到 ${wk.to} · 连续有完成 ${wk.streak} 天</p>`;
+    if (wkBox) wkBox.innerHTML = this.lineChart(wk);
+  },
+
+  /** 最近 7 天折线图：两条线 —— 每天的任务量（当天新增）和完成量。
+      手写 SVG，不引图表库（本地打开也要能用，不能依赖 CDN）。
+      viewBox 取 340 宽，手机上缩放比接近 1，字号不会被缩得看不见。 */
+  lineChart(wk){
+    const all = Store.list('todo');
+    const dayOf = ts => ts ? Util.dateOf(new Date(ts)) : '';
+    const created = wk.days.map(d => all.filter(x => dayOf(x.createdAt) === d).length);
+    const done = wk.per;
+
+    const W = 340, H = 170, padL = 22, padR = 10, padT = 12, padB = 22;
+    const iw = W - padL - padR, ih = H - padT - padB;
+    const max = Math.max(1, ...created, ...done);
+    const X = i => padL + i * iw / 6;
+    const Y = v => padT + ih * (1 - v / max);
+
+    let g = '';
+    for (let k = 0; k <= 3; k++){
+      const v = max * k / 3, y = Y(v);
+      g += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}"
+              stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>`;
+      g += `<text x="${padL - 6}" y="${(y + 3.2).toFixed(1)}" text-anchor="end"
+              fill="var(--text-dim)" font-size="9">${Math.round(v)}</text>`;
     }
+    const C1 = '#d29922', C2 = '#3fb950';
+    const poly = (arr, c) =>
+      `<polyline points="${arr.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}"
+        fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const dots = (arr, c) => arr.map((v, i) =>
+      `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="var(--card)"
+        stroke="${c}" stroke-width="2"/>`).join('');
+    const labels = wk.days.map((d, i) =>
+      `<text x="${X(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" fill="var(--text-dim)"
+        font-size="9">${+d.slice(5, 7)}/${+d.slice(8, 10)}</text>`).join('');
+
+    const sumC = created.reduce((a, b) => a + b, 0);
+    const sumD = done.reduce((a, b) => a + b, 0);
+    return `
+      <div class="chart-legend">
+        <span><i style="background:${C1}"></i>任务量 ${sumC} 件</span>
+        <span><i style="background:${C2}"></i>完成量 ${sumD} 件</span>
+      </div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="最近 7 天的任务量与完成量折线图">
+          ${g}${poly(created, C1)}${poly(done, C2)}${dots(created, C1)}${dots(done, C2)}${labels}
+        </svg>
+      </div>
+      <p class="hint" style="margin:10px 0 0">${wk.from} 到 ${wk.to} · 连续有完成 ${wk.streak} 天</p>`;
   },
 
   async makeCard(){
@@ -2711,9 +2759,20 @@ const Plan = {
             <button class="btn ghost" onclick="Todo.addTo('${sel}')">＋ 待办</button>
             <button class="btn ghost" onclick="Plan.addTo('${sel}')">＋ 行程</button>
           </span></div>`;
-    if (tds.length){
-      h += `<div class="pday-sub">✅ 待办 · ${tds.length} 项（点方框直接勾掉）</div>`;
-      h += tds.map(x => this.dayTodoRow(x)).join('');
+    /* 待办拆成「还没做」和「已完成」两段。
+       之前混在一组里，勾掉之后还挂在"待办"下面，看着像没生效。 */
+    const tOpen = tds.filter(x => !x.done);
+    const tDone = tds.filter(x => x.done);
+    if (tOpen.length){
+      h += `<div class="pday-sub">✅ 待办 · ${tOpen.length} 项待做（点方框直接勾掉）</div>`;
+      h += tOpen.map(x => this.dayTodoRow(x)).join('');
+    }
+    if (tDone.length){
+      h += `<div class="pday-sub">✔ 已完成 · ${tDone.length} 项</div>`;
+      h += tDone.map(x => this.dayTodoRow(x)).join('');
+    }
+    if (tds.length && !tOpen.length){
+      h += `<div class="pday-sub" style="color:#3fb950">这天的待办全部做完了 🎉</div>`;
     }
     if (items.length){
       h += `<div class="pday-sub">📅 行程 · ${items.length} 项</div>`;
@@ -2736,12 +2795,32 @@ const Plan = {
   },
 
   list(){
-    const all = this.all(), ids = this.doneIds();
     const box = document.getElementById('planList');
     if (!box) return;
-    box.innerHTML = all.length
+    const all = this.all(), ids = this.doneIds();
+    const daily = all.filter(p => !p.date);
+    let h = '';
+
+    /* 待办也并进列表视图，跟日历看到的是同一份数据。
+       只列没做完的——已完成的按之前定的规矩归复盘页，不往这儿堆。 */
+    if (typeof Todo !== 'undefined'){
+      const open = Todo.all().filter(x => !x.done).sort((a, b) => Todo.cmp(a, b));
+      h += `<div class="pday-sub">✅ 待办 · ${open.length} 项待做</div>`;
+      h += open.length
+        ? open.map(x => Todo.row(x)).join('')
+        : '<div class="empty" style="padding:8px 0">没有进行中的待办</div>';
+    }
+
+    /* 行程 */
+    h += `<div class="pday-sub">📅 行程 · ${all.length} 项${daily.length ? `（${daily.length} 项每天重复）` : ''}</div>`;
+    h += all.length
       ? all.map(p => this.row(p, ids.includes(p.id))).join('')
-      : '<div class="empty">还没有行程。早会、日报这类每天做的写这儿；某天的单项评审就选个日期</div>';
+      : '<div class="empty" style="padding:8px 0">还没有行程。早会、日报这类每天做的写这儿；某天的单项评审就选个日期</div>';
+
+    const st = Todo.stat();
+    if (st) h += `<p class="hint" style="margin-top:12px">${Util.esc(st)}</p>`;
+
+    box.innerHTML = h;
   },
 
   render(){
