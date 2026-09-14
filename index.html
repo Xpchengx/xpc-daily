@@ -2,7 +2,6 @@
 <!--
   ╔══════════════════════════════════════════════════════════════╗
   ║  Xpc每日任务                                                  ║
-  ║  由 不一书个人工作台生成器 (bys-personal-dashboard) 生成       ║
   ╠══════════════════════════════════════════════════════════════╣
   ║  改这个文件时请遵守：                                          ║
   ║  1. 每个功能必须被分区标记包裹，且 START 和 END 的功能名        ║
@@ -1508,8 +1507,6 @@ const Recap = {
     g.fillStyle = v('--text-dim') || '#93a1b1';
     g.font = font(26);
     g.fillText('Xpc每日任务', pad + 56, 1010);
-    g.font = font(22);
-    g.fillText('由 不一书个人工作台生成器 生成', pad + 56, 1046);
 
     cv.toBlob(b => {
       const url = URL.createObjectURL(b);
