@@ -192,6 +192,9 @@ select{appearance:none;-webkit-appearance:none}
 /* 编辑按钮（打开单例编辑弹层，改内容/时间/优先级/日期/责任人/备注） */
 .item .edit-btn{background:none;border:none;color:var(--text-dim);font-size:15px;padding:0 4px;flex-shrink:0;opacity:.45}
 .item .edit-btn:active{opacity:1}
+/* 发到 Obsidian：把这条待办建一条笔记 */
+.item .send-btn{background:none;border:none;color:var(--text-dim);font-size:15px;padding:0 4px;flex-shrink:0;opacity:.45}
+.item .send-btn:active{opacity:1;color:#8fe0a8}
 /* 变更记录（复盘页每条待办下可折叠展开） */
 .chg{margin:6px 0 10px;border:1px solid var(--line);border-radius:10px;background:#111920;overflow:hidden}
 .chg>summary{list-style:none;cursor:pointer;padding:9px 12px;font-size:13px;color:var(--text-dim);user-select:none}
@@ -778,6 +781,24 @@ select{appearance:none;-webkit-appearance:none}
         <h2 data-page-node-id="4HO0MyHuGzYtatZB1YlbKK">⚠️ 危险操作</h2>
         <button class="btn danger" onclick="Store.wipe()" data-page-node-id="GLOFYJHuL9JJTs2Rx4oZIU">清空所有数据</button>
         <p class="hint" data-page-node-id="JsPrqVtpAhJPHHWDglSI8c">清空前请确认已经导出过备份，这个操作无法撤销。</p>
+      </div>
+
+      <div data-fold="c28" class="card wide">
+        <h2>📤 连接到 Obsidian</h2>
+        <p class="hint" style="margin-top:0">
+          把待办 / 计划 / 工作日志导出成 Markdown，丢进 Obsidian 的 Daily 文件夹就能用；
+          或给单条待办点 <b>📨</b> 直接建一条笔记。浏览器不能直接写硬盘，所以导出是下载 .md 或复制文本，你手动放进 vault 即可。
+        </p>
+        <div class="row" style="margin-top:12px">
+          <input type="text" id="obsVault" placeholder="Obsidian 仓库名（用默认仓库可留空）" style="max-width:260px"
+                 onchange="Settings.saveObsVault(this)">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" onclick="Obsidian.exportToday()">导出今日</button>
+          <button class="btn ghost" onclick="Obsidian.exportAll()">导出全部待办</button>
+          <button class="btn ghost" onclick="Obsidian.copyToday()">复制今日 Markdown</button>
+        </div>
+        <p class="hint" style="margin:0">导出的文件名形如 <b>2026-09-14.md</b>，放进 vault 的 Daily 文件夹，Obsidian 实时识别为日记。</p>
       </div>
 
       <div data-fold="c22" class="card" data-page-node-id="ctl8ab2cjJ4rAAO9o5sgXa">
@@ -1598,6 +1619,14 @@ const Settings = {
     this.renderGist();
     this.renderLogSync();
     this.renderHaptic();
+    const ov = document.getElementById('obsVault');
+    if (ov) ov.value = Store.get('obsVault') || '';
+  },
+
+  /* 记住 Obsidian 仓库名，发笔记的 URI 里要用 */
+  saveObsVault(el){
+    Store.set('obsVault', (el.value || '').trim());
+    UI.toast('已记住 Obsidian 仓库名');
   },
 
   enableGist(){ GistSync.enable(document.getElementById('gistToken').value); },
@@ -2391,6 +2420,7 @@ const Todo = {
               title="${x.owner ? '改责任人：' + Util.esc(x.owner) : '还没分派 · 点这里指定'}">👤</button>
       <button class="note-btn" onclick="Todo.toggleNote('${x.id}')" title="${hasNote ? '改备注' : '记一笔为什么没做'}">💬</button>
       <button class="edit-btn" onclick="Todo.openEdit('${x.id}')" title="编辑内容 / 时间 / 优先级 / 日期 / 责任人 / 备注">✏️</button>
+      <button class="send-btn" onclick="Obsidian.sendById('${x.id}')" title="发到 Obsidian 建一条笔记">📨</button>
       <button class="del" onclick="Todo.del('${x.id}')">✕</button>
     </div>` + this.ownerHtml(x) + this.noteHtml(x);
   },
@@ -3102,6 +3132,134 @@ const Log = {
   }
 };
 /* ==== 功能：日志 END ==== */
+
+/* ==== 功能：连接到 Obsidian START ====
+   两条路（用户选了 A+B）：
+   A. 批量导出 Markdown：今日 / 全部待办 → .md 文件（丢进 Obsidian Daily 文件夹即用）。
+      浏览器不能直接写硬盘，所以是「下载 .md」或「复制文本」，用户手动放进 vault。
+   B. 单条发送：每条待办点 📨，用 obsidian://new URI 在 Obsidian 建一条笔记。
+      仓库名存在 Store('obsVault')，留空则用默认仓库。 */
+const Obsidian = {
+  vault(){ return (Store.get('obsVault') || '').trim(); },
+
+  /* 一条待办 → Markdown 行（含优先级 / 责任人 / 开始日期 / 已进行天数 / 备注） */
+  _todoLine(x){
+    const box  = x.done ? '[x]' : '[ ]';
+    const t    = x.time ? x.time + ' ' : '';
+    const pri  = x.pri ? ' `P' + x.pri + '`' : '';
+    const owner = x.owner ? ' 👤' + x.owner : '';
+    const start0 = x.start || (x.createdAt ? Util.dateOf(new Date(x.createdAt)) : '');
+    const days = start0 ? Util.days(start0, new Date()) : 0;
+    const age = (!x.done && start0) ? (days > 0 ? ' 🟢起' + start0.slice(5) + '·已' + days + '天' : ' 🟢今天起') : '';
+    const note = (x.note && x.note.trim()) ? ' — ' + x.note.trim() : '';
+    return `- ${box} ${t}${x.text}${pri}${owner}${age}${note}`;
+  },
+
+  _planLine(p){
+    const t = p.time ? p.time + ' ' : '';
+    const owner = p.owner ? ' 👤' + p.owner : '';
+    const when = p.date ? '（' + p.date.slice(5) + '）' : '（每天）';
+    return `- ${t}${p.text}${owner} ${when}`;
+  },
+
+  _logBlock(date){
+    const it = Log.all().find(x => x.date === date);
+    if (!it || !it.text || !it.text.trim()) return '';
+    return '## 工作日志\n' + it.text.trim().split('\n').map(l => '> ' + l).join('\n') + '\n';
+  },
+
+  /* 今日 Daily Note */
+  todayMd(){
+    const t = Util.today();
+    const wd = ['日','一','二','三','四','五','六'][new Date().getDay()];
+    let md = '# ' + t + ' 星期' + wd + '\n\n';
+    md += '## 待办（今天该做的）\n';
+    const todos = Todo.dueToday().sort((a, b) => Todo.cmp(a, b));
+    md += (todos.length ? todos.map(x => this._todoLine(x)).join('\n') : '（无）') + '\n\n';
+    md += '## 计划（固定行程）\n';
+    const plans = Plan.forToday();
+    md += (plans.length ? plans.map(p => this._planLine(p)).join('\n') : '（无）') + '\n\n';
+    md += this._logBlock(t);
+    return md;
+  },
+
+  /* 全部待办（进行中 + 已完成） */
+  allMd(){
+    let md = '# Xpc每日任务 · 全部待办导出\n\n_导出于 ' + Util.today() + '_\n\n';
+    const open = Todo.open().sort((a, b) => Todo.cmp(a, b));
+    md += '## 进行中（' + open.length + '）\n';
+    md += (open.length ? open.map(x => this._todoLine(x)).join('\n') : '（无）') + '\n\n';
+    const done = Todo.all().filter(x => x.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    md += '## 已完成（' + done.length + '）\n';
+    md += (done.length ? done.map(x => this._todoLine(x)).join('\n') : '（无）') + '\n\n';
+    const plans = Plan.all();
+    md += '## 固定行程（' + plans.length + '）\n';
+    md += (plans.length ? plans.map(p => this._planLine(p)).join('\n') : '（无）') + '\n';
+    return md;
+  },
+
+  _download(name, content){
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 120);
+  },
+
+  exportToday(){
+    const t = Util.today();
+    this._download(t + '.md', this.todayMd());
+    UI.toast('已导出 ' + t + '.md，放进 Obsidian 的 Daily 文件夹');
+  },
+  exportAll(){
+    this._download('Xpc每日任务-全部待办-' + Util.today() + '.md', this.allMd());
+    UI.toast('已导出全部待办');
+  },
+  copyToday(){
+    const txt = this.todayMd();
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt)
+        .then(() => UI.toast('今日 Markdown 已复制'), () => UI.toast('复制失败，改用「导出今日」'));
+    } else {
+      UI.toast('此环境不支持复制，请用「导出今日」');
+    }
+  },
+
+  /* 单条待办 → obsidian://new URI（纯函数，便于测试；不触发导航） */
+  buildUri(x){
+    if (!x) return '';
+    const v = this.vault();
+    const safe = (x.text || 'task').replace(/[\\/:*?"<>|#^[\]]/g, '').slice(0, 40).trim() || 'task';
+    const lines = ['# ' + x.text, ''];
+    lines.push('- 优先级：P' + (x.pri || 2));
+    if (x.time) lines.push('- 时间：' + x.time);
+    if (x.due) lines.push('- 应完成日：' + x.due);
+    const start0 = x.start || (x.createdAt ? Util.dateOf(new Date(x.createdAt)) : '');
+    if (start0) lines.push('- 开始日期：' + start0);
+    if (x.owner) lines.push('- 责任人：' + x.owner);
+    if (x.note && x.note.trim()) lines.push('- 备注：' + x.note.trim());
+    lines.push('', '> 来自 Xpc每日任务 · ' + Util.today());
+    const p = new URLSearchParams();
+    if (v) p.set('vault', v);
+    p.set('file', 'Xpc任务/' + safe);
+    p.set('content', lines.join('\n'));
+    return 'obsidian://new?' + p.toString();
+  },
+
+  send(x){
+    const uri = this.buildUri(x);
+    if (!uri) return;
+    try { window.location.href = uri; } catch(e){ /* 有的环境不允许改 location */ }
+    UI.toast('已调起 Obsidian 建笔记（没反应就确认 Obsidian 已安装）');
+  },
+
+  sendById(id){
+    const x = Todo.all().find(t => t.id === id);
+    this.send(x);
+  }
+};
+/* ==== 功能：连接到 Obsidian END ==== */
 
 
 /* ==== 功能：文档 START ====
