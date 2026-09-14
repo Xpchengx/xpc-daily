@@ -228,6 +228,7 @@ select{appearance:none;-webkit-appearance:none}
 .tag.owner{background:#1f3a5f;color:#9ecbff;cursor:pointer}
 .tag.date{background:#22304a;color:#a5b8d4}
 .tag.date.past{opacity:.5}
+.tag.start{background:rgba(60,150,95,.20);color:#8fe0a8}
 /* ── 计划：日历视图 ── */
 .pseg{display:flex;gap:8px;margin-bottom:12px}
 .pseg .chip{padding:4px 14px}
@@ -832,6 +833,11 @@ select{appearance:none;-webkit-appearance:none}
       <input type="text" id="editDue" readonly inputmode="none" placeholder="应完成日（今天/未来，可清空）"
              style="max-width:200px;cursor:pointer" onclick="Picker.openDate('editDue')">
       <button class="btn ghost" style="padding:6px 12px" onclick="document.getElementById('editDue').value=''">清空日期</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="editStart" readonly inputmode="none" placeholder="开始日期（默认创建当天，可改）"
+             style="max-width:200px;cursor:pointer" onclick="Picker.openDate('editStart')">
+      <button class="btn ghost" style="padding:6px 12px" onclick="document.getElementById('editStart').value=''">清除</button>
     </div>
     <div class="row" style="margin-top:10px">
       <input type="text" id="editOwner" list="ownerList" placeholder="责任人（可留空）" style="max-width:200px">
@@ -2110,6 +2116,7 @@ const Todo = {
       owner,
       createdAt: Date.now(),
       due,
+      start: Util.today(),
       done: false,
       doneAt: null,
       note: '',
@@ -2284,6 +2291,7 @@ const Todo = {
     document.getElementById('editTime').value = x.time || '';
     document.getElementById('editPri').value = x.pri || 2;
     document.getElementById('editDue').value = x.due || '';
+    document.getElementById('editStart').value = x.start || (x.createdAt ? Util.dateOf(new Date(x.createdAt)) : '') || '';
     document.getElementById('editOwner').value = x.owner || '';
     document.getElementById('editNote').value = x.note || '';
     document.getElementById('editMask').classList.add('on');
@@ -2308,6 +2316,7 @@ const Todo = {
     const time = (document.getElementById('editTime').value || '').trim();
     const pri  = parseInt(document.getElementById('editPri').value, 10) || 2;
     const due  = (document.getElementById('editDue').value || '').trim();
+    const start = (document.getElementById('editStart').value || '').trim();
     const owner = (document.getElementById('editOwner').value || '').trim();
     const note = (document.getElementById('editNote').value || '').trim();
 
@@ -2317,14 +2326,16 @@ const Todo = {
       if (String(oldV) !== String(newV))
         log.push({ t: now, f: field, label, o: oldV, n: newV });
     };
+    const startOld = x.start || (x.createdAt ? Util.dateOf(new Date(x.createdAt)) : '');
     push('text',  '内容',     x.text || '',     text);
     push('time',  '时间',     x.time || '',     time);
     push('pri',   '优先级',   x.pri  || 2,      pri);
     push('due',   '应完成日', x.due || '',      due);
+    push('start', '开始日期', startOld,         start);
     push('owner', '责任人',   x.owner || '',    owner);
     push('note',  '备注',     x.note || '',     note);
 
-    Store.upsert('todo', { id, text, time, pri, due, owner, note, log });
+    Store.upsert('todo', { id, text, time, pri, due, start, owner, note, log });
     this.closeEdit();
     UI.toast(log.length ? '已保存并留痕' : '已保存');
     this.refresh();
@@ -2353,6 +2364,13 @@ const Todo = {
     /* 排在未来的任务：待办页看不出它属于哪天，标一下日期 */
     const future = !x.done && !late && x.due && x.due > t;
     const over = !x.done && x.time && x.time <= Util.hm();
+    /* 进行中的任务：标出开始日期 + 已进行几天，专治拖延（否则不知道从哪天起的）。
+       老数据没填 start 就回退到创建日，保证都能显示。 */
+    const start0 = x.start || (x.createdAt ? Util.dateOf(new Date(x.createdAt)) : '');
+    const since = (!x.done && start0) ? Math.max(0, Util.days(start0, new Date())) : -1;
+    const startTag = since >= 0
+      ? `<span class="tag start">🟢 起 ${Util.esc(start0.slice(5))}${since > 0 ? ` ·已${since}天` : ' ·今天起'}</span>`
+      : '';
     const pri = x.pri || 2;
     const hasNote = !!(x.note && x.note.trim());
     return `<div class="item ${x.done ? 'done' : ''} ${hasNote ? 'has-note' : ''}"
@@ -2362,6 +2380,7 @@ const Todo = {
       <span class="grow">${Util.esc(x.text)}
         <span class="tag p${pri}">P${pri}</span>
         ${x.owner ? `<span class="tag owner" data-owner="${Util.esc(x.owner)}" onclick="Todo.filterByOwner(this)" title="只看这个人的">👤 ${Util.esc(x.owner)}</span>` : ''}
+        ${startTag}
         ${(late && !x.done) ? `<span class="tag late">已拖 ${late} 天</span>` : ''}
         ${future ? `<span class="tag date">📅 ${Util.esc(x.due.slice(5))}</span>` : ''}
         ${over ? '<span class="tag now">到点了</span>' : ''}
