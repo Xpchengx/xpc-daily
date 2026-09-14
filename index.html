@@ -189,6 +189,22 @@ select{appearance:none;-webkit-appearance:none}
 .own-edit{margin:0 0 10px}
 .own-edit input{width:100%;font-size:16px}
 .own-edit .row{margin-top:8px}
+/* 编辑按钮（打开单例编辑弹层，改内容/时间/优先级/日期/责任人/备注） */
+.item .edit-btn{background:none;border:none;color:var(--text-dim);font-size:15px;padding:0 4px;flex-shrink:0;opacity:.45}
+.item .edit-btn:active{opacity:1}
+/* 变更记录（复盘页每条待办下可折叠展开） */
+.chg{margin:6px 0 10px;border:1px solid var(--line);border-radius:10px;background:#111920;overflow:hidden}
+.chg>summary{list-style:none;cursor:pointer;padding:9px 12px;font-size:13px;color:var(--text-dim);user-select:none}
+.chg>summary::-webkit-details-marker{display:none}
+.chg>summary:before{content:'▸ '}
+.chg[open]>summary:before{content:'▾ '}
+.chg-list{margin:0;padding:4px 14px 12px;list-style:none;font-size:13px;line-height:1.7}
+.chg-list li{padding:3px 0;border-top:1px dashed var(--line)}
+.chg-list li:first-child{border-top:none}
+.chg-t{color:var(--text-dim);font-variant-numeric:tabular-nums;margin-right:6px}
+.chg-f{color:var(--accent)}
+.chg-o{color:var(--text-dim)}
+.chg-n{color:#7ee787}
 /* ── 复盘页：三个数 + 完成率条 ── */
 .rstat{display:flex;gap:10px;margin-bottom:14px}
 .rstat>div{flex:1;background:#111920;border:1px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center}
@@ -276,6 +292,9 @@ select{appearance:none;-webkit-appearance:none}
   max-height:86vh;overflow:auto
 }
 .sheet-mask.on,.sheet.on{display:block}
+/* 从「编辑待办」弹层里点选时间/日期时，选择器要盖在编辑层之上 */
+#pickerMask{z-index:94}
+#pickerSheet{z-index:95}
 .sheet-head{display:flex;align-items:center;margin-bottom:10px;font-size:16px}
 .sheet-foot{display:flex;gap:10px;margin-top:14px}
 .sheet-foot .btn{flex:1}
@@ -789,6 +808,44 @@ select{appearance:none;-webkit-appearance:none}
     <button class="btn" onclick="Picker.confirm()">确定</button>
   </div>
 </div>
+
+<!-- ==== 功能：待办编辑（单例弹层，避开「今天页/待办页」两处重复 id 的坑） ==== -->
+<div class="sheet-mask" id="editMask" onclick="Todo.closeEdit(event)"></div>
+<div class="sheet" id="editSheet" role="dialog" aria-modal="true">
+  <div class="sheet-head">
+    <b>✏️ 编辑待办</b>
+    <button class="btn ghost" style="margin:0 0 0 auto;padding:4px 12px" onclick="Todo.closeEdit()">关闭</button>
+  </div>
+  <div class="sheet-b">
+    <div class="row"><input type="text" id="editText" placeholder="要做的事" style="width:100%"></div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="editTime" readonly inputmode="none" placeholder="时间（点选，可清空）"
+             style="max-width:160px;cursor:pointer" onclick="Picker.openTime('editTime')">
+      <button class="btn ghost" style="padding:6px 12px" onclick="document.getElementById('editTime').value=''">清空时间</button>
+      <select id="editPri" style="max-width:140px">
+        <option value="1">P1 紧急</option>
+        <option value="2">P2 重要</option>
+        <option value="3">P3 有空做</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="editDue" readonly inputmode="none" placeholder="应完成日（今天/未来，可清空）"
+             style="max-width:200px;cursor:pointer" onclick="Picker.openDate('editDue')">
+      <button class="btn ghost" style="padding:6px 12px" onclick="document.getElementById('editDue').value=''">清空日期</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="editOwner" list="ownerList" placeholder="责任人（可留空）" style="max-width:200px">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <textarea id="editNote" placeholder="为什么没做完？比如：等材料 / 被临时会占了 / 忘了"
+                style="width:100%;min-height:66px;font-size:16px"></textarea>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn ghost" onclick="Todo.closeEdit()">取消</button>
+      <button class="btn" onclick="Todo.saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
 <!-- ==== 功能：选择器 END ==== -->
 
 <script>
@@ -1053,6 +1110,13 @@ const Util = {
     return Math.round((y - x) / 864e5);
   },
   esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); },
+
+  /** 变更记录里用的时间戳：月-日 时:分 */
+  fmtTs(ts){
+    const d = new Date(ts);
+    const p = n => String(n).padStart(2,'0');
+    return `${d.getMonth()+1}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  },
 
   compressImage(file, maxW = 800, quality = .72){
     return new Promise((resolve, reject) => {
@@ -1378,7 +1442,7 @@ const Recap = {
     const leftBox = document.getElementById('recapLeft');
     if (leftBox){
       leftBox.innerHTML = s.left.length
-        ? s.left.slice().sort((a, b) => Todo.cmp(a, b)).map(x => Todo.row(x)).join('')
+        ? s.left.slice().sort((a, b) => Todo.cmp(a, b)).map(x => Todo.row(x) + Todo.logHtml(x)).join('')
           + `<p class="hint" style="margin-top:10px">点 💬 写下为什么没做完 —— 存进这条任务本身，
              待办页、今天页、日历里都看得到。<br>
              ${isToday ? '它们明天会自动出现在「今天」，继续提醒你。'
@@ -1390,7 +1454,7 @@ const Recap = {
     const doneBox = document.getElementById('recapDone');
     if (doneBox){
       doneBox.innerHTML = s.doneList.length
-        ? s.doneList.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(x => Todo.row(x)).join('')
+        ? s.doneList.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(x => Todo.row(x) + Todo.logHtml(x)).join('')
         : '<div class="empty">这天没有完成记录</div>';
     }
 
@@ -2048,7 +2112,8 @@ const Todo = {
       due,
       done: false,
       doneAt: null,
-      note: ''
+      note: '',
+      log: [{ t: Date.now(), f: 'create', label: '创建', o: '', n: '' }]
     });
     this._due = '';
     el.value = '';
@@ -2206,6 +2271,82 @@ const Todo = {
     this.refresh();
   },
 
+  /* ── 编辑：已创建的待办也能改核心字段 ──
+     必须走单例弹层：同一条待办在「今天」和「待办」两页各渲染一次，
+     用页面内联框会出现两个相同 id 的输入框，getElementById 只取第一个会存错。
+     单例弹层全页唯一，配唯一 id（editText/editTime/…），不受两页渲染影响。 */
+  _editId: '',
+  openEdit(id){
+    const x = this.all().find(t => t.id === id);
+    if (!x) return;
+    this._editId = id;
+    document.getElementById('editText').value = x.text || '';
+    document.getElementById('editTime').value = x.time || '';
+    document.getElementById('editPri').value = x.pri || 2;
+    document.getElementById('editDue').value = x.due || '';
+    document.getElementById('editOwner').value = x.owner || '';
+    document.getElementById('editNote').value = x.note || '';
+    document.getElementById('editMask').classList.add('on');
+    document.getElementById('editSheet').classList.add('on');
+  },
+
+  /** 点遮罩空白处才关；点弹层内部不关（ev.target === ev.currentTarget 才是遮罩本身） */
+  closeEdit(ev){
+    if (ev && ev.target !== ev.currentTarget) return;
+    document.getElementById('editMask').classList.remove('on');
+    document.getElementById('editSheet').classList.remove('on');
+  },
+
+  /** 保存编辑：和原值逐项比对，有变化的写进 x.log 变更历史（保留全部记录）。
+     每次改动都是 push 一条，不覆盖，所以复盘里能看到完整时间线。 */
+  saveEdit(){
+    const id = this._editId;
+    const x = this.all().find(t => t.id === id);
+    if (!x) return;
+    const text = (document.getElementById('editText').value || '').trim();
+    if (!text){ UI.toast('内容不能为空'); return; }
+    const time = (document.getElementById('editTime').value || '').trim();
+    const pri  = parseInt(document.getElementById('editPri').value, 10) || 2;
+    const due  = (document.getElementById('editDue').value || '').trim();
+    const owner = (document.getElementById('editOwner').value || '').trim();
+    const note = (document.getElementById('editNote').value || '').trim();
+
+    const log = x.log ? x.log.slice() : [];
+    const now = Date.now();
+    const push = (field, label, oldV, newV) => {
+      if (String(oldV) !== String(newV))
+        log.push({ t: now, f: field, label, o: oldV, n: newV });
+    };
+    push('text',  '内容',     x.text || '',     text);
+    push('time',  '时间',     x.time || '',     time);
+    push('pri',   '优先级',   x.pri  || 2,      pri);
+    push('due',   '应完成日', x.due || '',      due);
+    push('owner', '责任人',   x.owner || '',    owner);
+    push('note',  '备注',     x.note || '',     note);
+
+    Store.upsert('todo', { id, text, time, pri, due, owner, note, log });
+    this.closeEdit();
+    UI.toast(log.length ? '已保存并留痕' : '已保存');
+    this.refresh();
+  },
+
+  /** 复盘页每条待办下的变更时间线：创建时间 + 每次改动的字段前后值，可折叠 */
+  logHtml(x){
+    if (!x.log || !x.log.length) return '';
+    const items = x.log.slice().reverse().map(e => {
+      const ts = e.t ? Util.fmtTs(e.t) : '';
+      if (e.f === 'create')
+        return `<li><span class="chg-t">${Util.esc(ts)}</span><span class="chg-f">创建</span></li>`;
+      const ov = (e.o == null || e.o === '') ? '空' : e.o;
+      const nv = (e.n == null || e.n === '') ? '空' : e.n;
+      return `<li><span class="chg-t">${Util.esc(ts)}</span>`
+        + `<span class="chg-f">${Util.esc(e.label)}</span>：`
+        + `<span class="chg-o">${Util.esc(ov)}</span> → <span class="chg-n">${Util.esc(nv)}</span></li>`;
+    }).join('');
+    return `<details class="chg"><summary>📝 变更记录 ${x.log.length} 条</summary>`
+      + `<ul class="chg-list">${items}</ul></details>`;
+  },
+
   row(x){
     const late = this.late(x);
     const t = Util.today();
@@ -2230,6 +2371,7 @@ const Todo = {
       <button class="own-btn ${x.owner ? 'on' : ''}" onclick="Todo.toggleOwner('${x.id}')"
               title="${x.owner ? '改责任人：' + Util.esc(x.owner) : '还没分派 · 点这里指定'}">👤</button>
       <button class="note-btn" onclick="Todo.toggleNote('${x.id}')" title="${hasNote ? '改备注' : '记一笔为什么没做'}">💬</button>
+      <button class="edit-btn" onclick="Todo.openEdit('${x.id}')" title="编辑内容 / 时间 / 优先级 / 日期 / 责任人 / 备注">✏️</button>
       <button class="del" onclick="Todo.del('${x.id}')">✕</button>
     </div>` + this.ownerHtml(x) + this.noteHtml(x);
   },
