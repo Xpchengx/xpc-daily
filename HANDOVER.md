@@ -34,7 +34,7 @@ HANDOVER.md     本文件
 ## 技术约束（改代码前必读）
 
 1. **所有代码内联在 `index.html`，不许拆文件。** 验收用的冒烟测试只加载 index.html，拆出去的文件它抓不到，等于测试白跑。
-2. **卡片折叠编号 `data-fold="cN"` 是写死的，新卡片只能用新编号，绝不许重排。** 用户的折叠状态按编号存在 Store 里，重排会让状态串到别的卡片。目前用到 c27。
+2. **卡片折叠编号 `data-fold="cN"` 是写死的，新卡片只能用新编号，绝不许重排。** 用户的折叠状态按编号存在 Store 里，重排会让状态串到别的卡片。目前用到 c28（c28 = 连接到 Obsidian 卡片）。
 3. **不能在多个页面共用同一套渲染的地方用 `getElementById` 取值。** 同一条数据会同时出现在多个页面（一条待办会出现在「今天」页、「待办」页、计划日历里），id 会重复，`getElementById` 只返回第一个 —— 曾经因此丢掉用户写的备注。一律用 `btn.closest('.note-edit')` 这种从点击元素往上找的写法。
 4. **不许用 `setInterval` 轮询**（验收脚本会拦）。同步只在打开时和手动点击时拉取。
 5. **所有用户输入必须过 `Util.esc()`** 再拼进 HTML。
@@ -59,6 +59,7 @@ HANDOVER.md     本文件
 | `Plan` | 计划：日历视图（默认）+ 列表视图；行程支持日期和责任人 |
 | `Recap` | 复盘：日报三个数 + 折线图 + 生成图卡 |
 | `Goal` / `Log` / `Docs` | 年度目标 / 工作日志 / 云文档入口 |
+| `Obsidian` | 连接到 Obsidian：导出 Daily Note Markdown（今日/全部）+ 每条待办用 `obsidian://new` 建笔记 |
 
 **模块顺序有讲究**：`Todo.refresh()` 会调用 `Today/Plan/Recap` 的 render，所以那几个要定义在 Todo 之后（或调用处用 `typeof` 兜底）。
 
@@ -74,6 +75,7 @@ HANDOVER.md     本文件
 6. **待办页只显示"今天完成的"**，历史完成记录归复盘页按天统计。
 7. **复盘页的数字是实时算的，不存快照** —— todo 有 `createdAt`/`doneAt`，任意一天都能算，改数据不会出现"日报和实际对不上"。
 8. **删除用软删除（墓碑）**：`softDelete` 留一条带 `_d` 标记的记录，否则另一台设备同步回来会把它复活。`list()` 过滤墓碑，`Store.get()` 底层保留。
+9. **连接到 Obsidian 是单向/按需，不是双向同步**（用户 2026-09-14 确认走 A+B）：A 批量导出=下载 .md 或复制文本（**浏览器不能直写硬盘**，用户手动放进 vault 的 Daily 文件夹）；B 单条发笔记= `obsidian://new?vault=&file=Xpc任务/标题&content=...` URI 调起 Obsidian 建笔记（需 Obsidian 已安装；仓库名存 `Store('obsVault')`，留空用默认仓库）。**没做** C 嵌活页面 / D 双向同数据源（风险高）。
 
 ## 开发流程
 
@@ -88,6 +90,7 @@ node "~/.workbuddy/skills/bys-personal-dashboard/scripts/smoke_test.js" .
 
 # 3. 本项目自己的回归测试（4 个文件，在会话工作目录的 .workbuddy/ 下）
 #    t-cal.js（待办进日历）/ t-owner.js（责任人）/ t-recap.js（排序+复盘）/ t-fix3.js（日历拆组+折线图）
+#    t-start.js（进行中待办开始日期+已进行天数）/ t-obsidian.js（Obsidian 导出+单条发送）
 NODE_PATH="~/.workbuddy/skills/bys-personal-dashboard/node_modules" node t-xxx.js <工程目录>
 
 # 4. 提交推送
