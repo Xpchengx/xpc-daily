@@ -23,7 +23,7 @@
 ## 文件
 
 ```
-index.html      全部界面 + 逻辑（约 3000 行，全内联 —— 原因见下方约束）
+index.html      全部界面 + 逻辑（约 3333 行，全内联 —— 原因见下方约束）
 manifest.json   PWA 配置（"添加到主屏幕"用）
 icon.png        桌面图标
 HANDOVER.md     本文件
@@ -75,6 +75,7 @@ HANDOVER.md     本文件
 6. **待办页只显示"今天完成的"**，历史完成记录归复盘页按天统计。
 7. **复盘页的数字是实时算的，不存快照** —— todo 有 `createdAt`/`doneAt`，任意一天都能算，改数据不会出现"日报和实际对不上"。
 8. **删除用软删除（墓碑）**：`softDelete` 留一条带 `_d` 标记的记录，否则另一台设备同步回来会把它复活。`list()` 过滤墓碑，`Store.get()` 底层保留。
+9. **待办行操作按钮折叠成 ⋯ 菜单（手机端关键修复，2026-09-15）**。原每行右侧并排 5 个按钮（👤💬✏️📨✕）+ 时间 + 勾选框，窄屏下把文字挤到约 15px 宽 → 中文一个字一行。现改为：默认只显示 `⋯` + 正文；点 `⋯` 展开浮层出 5 个操作；`Todo._menu` 存当前展开 id（同一时刻只开一个）；点子操作/点别处自动收起。新增 `t-fold.js` 守住该行为。若以后再改这里，**别把 5 个按钮又摊回行内**，否则手机端会复现变形。
 9. **连接到 Obsidian 是单向/按需，不是双向同步**（用户 2026-09-14 确认走 A+B）：A 批量导出=下载 .md 或复制文本（**浏览器不能直写硬盘**，用户手动放进 vault 的 Daily 文件夹）；B 单条发笔记= `obsidian://new?vault=&file=Xpc任务/标题&content=...` URI 调起 Obsidian 建笔记（需 Obsidian 已安装；仓库名存 `Store('obsVault')`，留空用默认仓库）。**没做** C 嵌活页面 / D 双向同数据源（风险高）。
 
 ## 开发流程
@@ -82,23 +83,30 @@ HANDOVER.md     本文件
 改完按这个顺序走，别跳：
 
 ```bash
+# 0. 先打个回滚基线（如果这次相对上次能用版本有较大改动）
+git tag -f live-baseline-$(date +%Y%m%d) HEAD
+
 # 1. 静态检查（拦死链、缺 id、未转义等）
 python "~/.workbuddy/skills/bys-personal-dashboard/scripts/validate_dashboard.py" .
 
-# 2. 冒烟测试（headless 加载 index.html，9 条基础断言）
-node "~/.workbuddy/skills/bys-personal-dashboard/scripts/smoke_test.js" .
-
-# 3. 本项目自己的回归测试（4 个文件，在会话工作目录的 .workbuddy/ 下）
-#    t-cal.js（待办进日历）/ t-owner.js（责任人）/ t-recap.js（排序+复盘）/ t-fix3.js（日历拆组+折线图）
-#    t-start.js（进行中待办开始日期+已进行天数）/ t-obsidian.js（Obsidian 导出+单条发送）
+# 2. 本项目自己的回归测试（在会话工作目录的 .workbuddy/ 下）
+#    t-edit.js / t-recap.js / t-start.js / t-obsidian.js / t-fold.js
+#    ⚠️ 全部 EXIT=0 才算过；有红就先修，绝不在测试没全绿时推送
 NODE_PATH="~/.workbuddy/skills/bys-personal-dashboard/node_modules" node t-xxx.js <工程目录>
 
-# 4. 提交推送
+# 3. 提交推送
 git add -A && git commit -m "..." && git push origin main
 
-# 5. 等 40 秒左右，验证线上真的是新版
+# 4. 等 40 秒左右，验证线上真的是新版
 curl -s https://xpchengx.github.io/xpc-daily/ | grep -c "<这次新加的特征字符串>"
 ```
+
+**回滚**：任何时候线上出问题，立刻退回基线
+```bash
+git push -f origin live-baseline-20260915:main   # 把基线硬推上 main
+# 或只在本机看旧版：git checkout live-baseline-20260915
+```
+基线 tag 列：`git tag -l "live-baseline-*"`。每个能用版本都打了 tag，不会丢失可回退点。
 
 > 依赖：技能包 `bys-personal-dashboard`（验收脚本都在里面，**不跟账号走，新电脑要重装**）；冒烟测试需要 `jsdom`，在技能目录下 `npm install jsdom`，跑时带 `NODE_PATH`。
 > 写回归测试时注意：jsdom 里 `getBoundingClientRect()` 永远返回全 0，拖动排序的落点计算依赖它，要手动 mock 每个元素的 rect。
@@ -114,6 +122,9 @@ curl -s https://xpchengx.github.io/xpc-daily/ | grep -c "<这次新加的特征�
 4. **写"应该消失"类的断言特别容易漏取反**（`assert(includes(...))` 本意是"不包含"）。写完回头看一眼。
 5. **新增一套行样式时，`.done` 态的视觉要一并补齐。** `.item`（待办页/今天页）和 `.pday-item`（日历里）是两套 —— 曾经只改了 `.item`，导致日历里勾掉的待办方框不变色，看着像没勾上。
 6. **内联 `node -e` 脚本超过约 120 行会撞 bash 引号解析错误**，改成写成 `.js` 文件再跑。
+7. **（用户硬性要求）推送前必须跑全套验证且全绿，并保留可回滚点。** 每次有实质改动：先 `git tag -f live-baseline-<日期> HEAD` 打基线，再跑 `validate_dashboard.py` + 全部 `t-*.js`，全 EXIT=0 才 `git push`。线上出问题 `git push -f origin live-baseline-<日期>:main` 即回退。
+8. **手机窄屏"一个字一行"的头号原因是行内操作元素太多**。任何行（待办/日志/计划）要加操作按钮时，优先折叠进 `⋯` 菜单，别并排摊——摊回去就会复现变形（2026-09-15 踩过）。
+9. **本机 bash 的 `/tmp` 重定向不可用**：`> /tmp/x` 会失败让脚本退出码变 1（其实没跑）。跑测试别重定向到 `/tmp`，直接 `2>&1 | tail` 看摘要即可。
 
 ## 待办 / 下一步
 

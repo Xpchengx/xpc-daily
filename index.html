@@ -79,7 +79,7 @@ body{
 .side::-webkit-scrollbar{display:none}
 .brand{text-align:center;margin-bottom:14px;flex-shrink:0}
 .brand .logo{font-size:26px;line-height:1}
-.brand .name{font-size:11px;color:var(--sidebar-text);opacity:.9;margin-top:4px;line-height:1.3;word-break:break-all}
+.brand .name{font-size:11px;color:var(--sidebar-text);opacity:.9;margin-top:4px;line-height:1.3;word-break:normal}
 .nav{display:flex;flex-direction:column;gap:4px}
 .nav button{
   border:none;background:transparent;font-family:inherit;
@@ -195,6 +195,16 @@ select{appearance:none;-webkit-appearance:none}
 /* 发到 Obsidian：把这条待办建一条笔记 */
 .item .send-btn{background:none;border:none;color:var(--text-dim);font-size:15px;padding:0 4px;flex-shrink:0;opacity:.45}
 .item .send-btn:active{opacity:1;color:#8fe0a8}
+/* ── 操作折叠：手机窄屏下 5 个按钮会把文字挤成一个字一行，
+   所以平时只留一个 ⋯，点开才展开操作行（独立一行，不挤压正文） ── */
+.item .more-btn{background:none;border:none;color:var(--text);font-size:20px;line-height:1;
+  padding:0 6px;flex-shrink:0;opacity:.6;align-self:flex-start;margin-top:1px}
+.item .more-btn:active{opacity:1}
+.act-menu{display:flex;flex-wrap:wrap;gap:8px;padding:5px 0 11px 34px;border-bottom:1px dashed var(--line)}
+.act-menu button{background:var(--card);border:1px solid var(--line);color:var(--text-dim);
+  border-radius:18px;padding:6px 12px;font-size:13px;font-family:inherit;flex-shrink:0}
+.act-menu button:active{border-color:var(--accent);color:var(--text)}
+.act-menu .act-del{color:#e08a8a;border-color:#5a2e2e}
 /* 变更记录（复盘页每条待办下可折叠展开） */
 .chg{margin:6px 0 10px;border:1px solid var(--line);border-radius:10px;background:#111920;overflow:hidden}
 .chg>summary{list-style:none;cursor:pointer;padding:9px 12px;font-size:13px;color:var(--text-dim);user-select:none}
@@ -2226,6 +2236,7 @@ const Todo = {
   /* ── 备注：这条为什么没做完 ──
      顺延多天的任务最需要它，所以今日页也用同一个 row()，备注跟着走。 */
   toggleNote(id){
+    this._menu = '';
     this._note = this._note === id ? null : id;
     this.refresh();
   },
@@ -2264,6 +2275,7 @@ const Todo = {
      建的时候不知道该给谁，就先留空；之后随时点 👤 补上或改派。
      留空 = 未分配，待办页的「未分配」筛选能一次捞出这些。 */
   toggleOwner(id){
+    this._menu = '';
     this._owner = this._owner === id ? null : id;
     this.refresh();
   },
@@ -2302,19 +2314,31 @@ const Todo = {
   },
 
   del(id){
+    this._menu = '';
     if (!confirm('删掉这条？')) return;
     Store.softDelete('todo', id);
     this.refresh();
   },
+
+  /* ── 操作折叠：手机窄屏下 5 个按钮会把文字挤成一个字一行，
+     平时只显示 ⋯，点开才展开操作行。同一条待办在「今天/待办」两页各渲染，
+     菜单状态按 id 记，刷新后只展开当前点开的那个。 */
+  toggleMenu(id){
+    this._menu = this._menu === id ? '' : id;
+    this.refresh();
+  },
+  closeMenu(){ this._menu = ''; this.refresh(); },
 
   /* ── 编辑：已创建的待办也能改核心字段 ──
      必须走单例弹层：同一条待办在「今天」和「待办」两页各渲染一次，
      用页面内联框会出现两个相同 id 的输入框，getElementById 只取第一个会存错。
      单例弹层全页唯一，配唯一 id（editText/editTime/…），不受两页渲染影响。 */
   _editId: '',
+  _menu: '',
   openEdit(id){
     const x = this.all().find(t => t.id === id);
     if (!x) return;
+    this._menu = '';
     this._editId = id;
     document.getElementById('editText').value = x.text || '';
     document.getElementById('editTime').value = x.time || '';
@@ -2416,13 +2440,16 @@ const Todo = {
         ${x.done ? `<span class="tag span">${Util.esc(this.span(x))}</span>` : ''}
         ${(late && !x.done && !hasNote) ? `<span class="tag late" style="cursor:pointer" onclick="Todo.toggleNote('${x.id}')">记一笔为什么没做</span>` : ''}
       </span>
-      <button class="own-btn ${x.owner ? 'on' : ''}" onclick="Todo.toggleOwner('${x.id}')"
-              title="${x.owner ? '改责任人：' + Util.esc(x.owner) : '还没分派 · 点这里指定'}">👤</button>
-      <button class="note-btn" onclick="Todo.toggleNote('${x.id}')" title="${hasNote ? '改备注' : '记一笔为什么没做'}">💬</button>
-      <button class="edit-btn" onclick="Todo.openEdit('${x.id}')" title="编辑内容 / 时间 / 优先级 / 日期 / 责任人 / 备注">✏️</button>
-      <button class="send-btn" onclick="Obsidian.sendById('${x.id}')" title="发到 Obsidian 建一条笔记">📨</button>
-      <button class="del" onclick="Todo.del('${x.id}')">✕</button>
-    </div>` + this.ownerHtml(x) + this.noteHtml(x);
+      <button class="more-btn" onclick="Todo.toggleMenu('${x.id}')" title="更多操作">⋯</button>
+    </div>`
+    + (this._menu === x.id ? `<div class="act-menu">
+        <button onclick="Todo.toggleNote('${x.id}')">💬 备注</button>
+        <button onclick="Todo.toggleOwner('${x.id}')">👤 责任人</button>
+        <button onclick="Todo.openEdit('${x.id}')">✏️ 编辑</button>
+        <button onclick="Todo.closeMenu();Obsidian.sendById('${x.id}')">📨 发Obsidian</button>
+        <button class="act-del" onclick="Todo.del('${x.id}')">🗑 删除</button>
+      </div>` : '')
+    + this.ownerHtml(x) + this.noteHtml(x);
   },
 
   render(){
