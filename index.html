@@ -684,6 +684,52 @@ select{appearance:none;-webkit-appearance:none}
     </section>
     <!-- ==== 功能：复盘（日报） END ==== -->
 
+    <!-- ==== 功能：日报 START ====
+       自动汇总某一天的任务 / 完成 / 备注，按日期查看 + 导出 Markdown。
+       折叠卡片 c29~c33（新编号，不与既有冲突）。 -->
+    <section class="page" id="page-report">
+      <div class="page-title">日报</div>
+      <div class="page-sub">自动汇总每天的任务、完成与备注，可导出</div>
+
+      <div data-fold="c29" class="card wide">
+        <h2>📰 日报
+          <span class="btns">
+            <button class="pcal-nav" onclick="Report.move(-1)" title="前一天">‹</button>
+            <b id="repDate" style="font-size:13px;min-width:120px;text-align:center"></b>
+            <button class="pcal-nav" onclick="Report.move(1)" title="后一天">›</button>
+            <button class="pcal-nav" onclick="Report.pick()" title="选日期">📅</button>
+          </span></h2>
+        <div id="repSummary"></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn" onclick="Report.exportMd()">导出 Markdown</button>
+          <button class="btn ghost" onclick="Report.copyMd()">复制</button>
+          <button class="btn ghost" onclick="Report.toToday()">回到今天</button>
+        </div>
+        <input id="repDateInput" type="hidden">
+      </div>
+
+      <div data-fold="c30" class="card wide">
+        <h2>📋 当日任务清单</h2>
+        <div id="repTasks"></div>
+      </div>
+
+      <div data-fold="c31" class="card wide">
+        <h2>✅ 已完成事项及备注</h2>
+        <div id="repDone"></div>
+      </div>
+
+      <div data-fold="c32" class="card wide">
+        <h2>📅 固定行程</h2>
+        <div id="repPlans"></div>
+      </div>
+
+      <div data-fold="c33" class="card wide">
+        <h2>📝 当日日志 / 备注</h2>
+        <div id="repLog"></div>
+      </div>
+    </section>
+    <!-- ==== 功能：日报 END ==== -->
+
     <!-- ==== 功能：设置 START ==== -->
     <section class="page" id="page-settings" data-page-node-id="GQBHVTXVr2z9OLIRtly70q">
       <div class="page-title" data-page-node-id="cxtVdUGFaFKUMfTd5p9yV1">设置</div>
@@ -1621,6 +1667,242 @@ const Recap = {
 
 
 /* ═══════════════════════════════════════════════════════════
+   日报 · 自动汇总某一天的任务 / 完成 / 备注
+   ───────────────────────────────────────────────────────────
+   设计要点（易扩展）：
+   · data(date)  纯函数：从现有 Store 重新聚合约定日数据，不新增存储。
+   · md(date)    纯函数：data → Markdown 文本（导出 / 复制复用同一份）。
+   · render()    把 data 画到页面，与数据解耦，以后想加「持久化日报」
+                 只要再写一层 save/load，data() 不动。
+   · 复用 Todo / Plan / Log / Picker，不重复造轮子。
+   ═══════════════════════════════════════════════════════════ */
+const Report = {
+  _d: '',                                   // 正在看哪一天（空 = 今天）
+
+  date(){ return this._d || Util.today(); },
+  isActive(){ return document.querySelector('.page.on')?.id === 'page-report'; },
+  toToday(){ this._d = Util.today(); Haptics.tick(10); this.render(); },
+
+  move(n){
+    const d = new Date(this.date() + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    const s = Util.dateOf(d);
+    if (s > Util.today()) return;            // 未来没数据，不让往后翻
+    this._d = s; Haptics.tick(10); this.render();
+  },
+
+  /** 点 📅 调起日期选择器，选完通过 Picker._cb 回调落到本页 */
+  pick(){
+    const inp = document.getElementById('repDateInput');
+    if (inp) inp.value = this.date();
+    Picker._cb = (v) => { if (v && v <= Util.today()){ this._d = v; this.render(); } };
+    Picker.openDate('repDateInput');
+  },
+
+  /** 某一天的全部数据（纯函数，便于测试）。
+       约定「这天摊上的任务」= 这天之前已建、且（未完成 或 这天之后才做完）的待办；
+       「已完成」= 这天 doneAt 落在这天的待办。两者并集 = 当天所有相关任务。 */
+  data(date){
+    const dayOfTs = ts => ts ? Util.dateOf(new Date(ts)) : '';
+    const todos = Store.list('todo');
+    const onPlate = todos.filter(x => {
+      const c = dayOfTs(x.createdAt);
+      if (!c || c > date) return false;          // 那天还没建出来
+      if (!x.done) return true;                  // 到那天还欠着
+      return dayOfTs(x.doneAt) > date;           // 那天之后才补完
+    });
+    const done = todos.filter(x => x.done && dayOfTs(x.doneAt) === date);
+    const taskList = onPlate.concat(done);        // 当天全部相关任务（含当天做完的）
+    const total = taskList.length;
+    const rate = total ? Math.round(done.length / total * 100) : 0;
+    const plans = Plan.all().filter(p => !p.date || p.date === date);
+    const donePlanIds = Store.list('planDone:' + date).map(x => x.id);
+    const log = Log.all().find(x => x.date === date);
+    return { date, onPlate, done, taskList, total, rate, plans, donePlanIds, log };
+  },
+
+  /** 一条待办 → Markdown 行（checkbox 反映完成态；含优先级/时间/责任人/开始日期/备注） */
+  _todoLine(x){
+    const box  = x.done ? '[x]' : '[ ]';
+    const t    = x.time ? x.time + ' ' : '';
+    const pri  = x.pri ? ' `P' + x.pri + '`' : '';
+    const owner = x.owner ? ' 👤' + x.owner : '';
+    const start0 = x.start || (x.createdAt ? Util.dateOf(new Date(x.createdAt)) : '');
+    const days = start0 ? Util.days(start0, new Date()) : 0;
+    const age = (!x.done && start0) ? (days > 0 ? ' 🟢起' + start0.slice(5) + '·已' + days + '天' : ' 🟢今天起') : '';
+    const note = (x.note && x.note.trim()) ? ' — ' + x.note.trim() : '';
+    return `- ${box} ${t}${x.text}${pri}${owner}${age}${note}`;
+  },
+
+  /** data → Markdown 文本（纯函数） */
+  md(date){
+    const d = new Date(date + 'T00:00:00');
+    const wd = '日一二三四五六'[d.getDay()];
+    const r = this.data(date);
+    const L = [];
+    L.push('# 日报 · ' + date + ' 星期' + wd);
+    L.push('');
+    L.push('> 自动汇总自 Xpc每日任务');
+    L.push('');
+    L.push('## 概览');
+    L.push('- 日期：' + date + ' 星期' + wd);
+    L.push('- 任务总数：' + r.total);
+    L.push('- 完成：' + r.done.length + '（完成率 ' + r.rate + '%）');
+    L.push('');
+    L.push('## 当日任务清单');
+    L.push(r.taskList.length
+      ? r.taskList.slice().sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1))
+              .map(x => this._todoLine(x)).join('\n')
+      : '（无）');
+    L.push('');
+    L.push('## 已完成事项及备注');
+    if (r.done.length){
+      r.done.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).forEach((x, i) => {
+        L.push((i + 1) + '. ' + (x.text || ''));
+        if (x.note && x.note.trim()) L.push('   - 备注：' + x.note.trim());
+        const sp = Todo.span(x);
+        if (sp) L.push('   - ' + sp);
+      });
+    } else {
+      L.push('（无）');
+    }
+    L.push('');
+    L.push('## 固定行程');
+    if (r.plans.length){
+      r.plans.forEach(p => {
+        const d2 = r.donePlanIds.includes(p.id);
+        const when = p.date ? '（' + p.date.slice(5) + '）' : '（每天）';
+        L.push('- ' + (d2 ? '[x] ' : '[ ] ') + (p.time ? p.time + ' ' : '') + p.text
+               + (p.owner ? ' 👤' + p.owner : '') + ' ' + when);
+      });
+    } else {
+      L.push('（无）');
+    }
+    L.push('');
+    L.push('## 当日日志');
+    if (r.log && r.log.text && r.log.text.trim()){
+      L.push(r.log.text.trim().split('\n').map(l => '> ' + l).join('\n'));
+    } else {
+      L.push('（无）');
+    }
+    return L.join('\n');
+  },
+
+  _download(name, content){
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 120);
+  },
+
+  exportMd(){
+    const d = this.date();
+    this._download('日报-' + d + '.md', this.md(d));
+    UI.toast('已导出 日报-' + d + '.md');
+  },
+  copyMd(){
+    const txt = this.md(this.date());
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt)
+        .then(() => UI.toast('日报 Markdown 已复制'), () => UI.toast('复制失败，改用「导出 Markdown」'));
+    } else {
+      UI.toast('此环境不支持复制，请用「导出 Markdown」');
+    }
+  },
+
+  render(){
+    const date = this.date(), t = Util.today();
+    const r = this.data(date);
+    const isToday = date === t;
+
+    const dl = document.getElementById('repDate');
+    if (dl){
+      const d = new Date(date + 'T00:00:00');
+      dl.textContent = isToday ? '今天' : `${d.getMonth() + 1} 月 ${d.getDate()} 日 周${'日一二三四五六'[d.getDay()]}`;
+    }
+
+    /* 概览：复用复盘的 .rstat / .rbar 样式 */
+    const sum = document.getElementById('repSummary');
+    if (sum){
+      sum.innerHTML = `
+        <div class="rstat">
+          <div><b>${r.total}</b><span>任务</span></div>
+          <div><b class="ok">${r.done.length}</b><span>完成</span></div>
+          <div><b class="${r.onPlate.length ? 'bad' : ''}">${r.onPlate.length}</b><span>未完成</span></div>
+        </div>
+        <div class="rbar"><i style="width:${r.rate}%"></i></div>
+        <p class="hint" style="margin:10px 0 0">
+          ${r.total ? `这天摊上 ${r.total} 件，做完 ${r.done.length} 件 · 完成率 ${r.rate}%` : '这天没有任务记录'}
+          ${isToday ? '（今天还没过完，数字还会变）' : ''}
+        </p>`;
+    }
+
+    /* 当日任务清单：复用 Todo.row（与待办页一致、可直接操作） */
+    const tBox = document.getElementById('repTasks');
+    if (tBox){
+      tBox.innerHTML = r.taskList.length
+        ? r.taskList.slice().sort((a, b) => {
+            if (a.done !== b.done) return a.done ? 1 : -1;   // 没做完的在前
+            return Todo.cmp(a, b);
+          }).map(x => Todo.row(x)).join('')
+        : '<div class="empty">这天没有任务</div>';
+    }
+
+    /* 已完成事项及备注：只列做完的，重点把备注/挂了几天亮出来 */
+    const dBBox = document.getElementById('repDone');
+    if (dBBox){
+      if (r.done.length){
+        dBBox.innerHTML = r.done.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(x => {
+          const note = (x.note && x.note.trim())
+            ? `<div class="note-line" onclick="Todo.toggleNote('${x.id}')">💬 ${Util.esc(x.note)}</div>` : '';
+          const sp = Todo.span(x);
+          const spTag = sp ? `<span class="tag span">${Util.esc(sp)}</span>` : '';
+          return `<div class="item done">
+              <span class="box">✓</span>
+              <span class="grow">${Util.esc(x.text)} ${spTag}</span>
+            </div>${note}`;
+        }).join('');
+      } else {
+        dBBox.innerHTML = '<div class="empty">这天没有完成记录</div>';
+      }
+    }
+
+    /* 固定行程：这天该出现的 + 按天的完成态 */
+    const pBox = document.getElementById('repPlans');
+    if (pBox){
+      pBox.innerHTML = r.plans.length
+        ? r.plans.map(p => {
+            const d2 = r.donePlanIds.includes(p.id);
+            const when = p.date ? '（' + p.date.slice(5) + '）' : '（每天）';
+            return `<div class="item ${d2 ? 'done' : ''}">
+              <span class="box">${d2 ? '✓' : ''}</span>
+              <span class="time">${p.time ? Util.esc(p.time) : ''}</span>
+              <span class="grow">${Util.esc(p.text)}
+                <span class="tag date">📅 ${Util.esc(when.replace(/[()]/g, ''))}</span>
+                ${p.owner ? `<span class="tag owner">👤 ${Util.esc(p.owner)}</span>` : ''}
+              </span>
+            </div>`;
+          }).join('')
+        : '<div class="empty">这天没有固定行程</div>';
+    }
+
+    /* 当日日志 / 备注 */
+    const lBox = document.getElementById('repLog');
+    if (lBox){
+      lBox.innerHTML = (r.log && r.log.text && r.log.text.trim())
+        ? `<div class="item"><span class="grow" style="white-space:pre-wrap">${Util.esc(r.log.text)}</span></div>`
+        : '<div class="empty">这天没有写日志</div>';
+    }
+  }
+};
+/* ═══════════════════════════════════════════════════════════
+   日报模块 END
+   ═══════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════
    Settings · 设置页
    ═══════════════════════════════════════════════════════════ */
 const Settings = {
@@ -1868,11 +2150,14 @@ const Picker = {
   confirm(){
     Haptics.tick(14);
     const el = document.getElementById(this._target);
-    if (el) el.value = this._mode === 'time'
+    const val = this._mode === 'time'
       ? String(this._h).padStart(2,'0') + ':' + String(this._m).padStart(2,'0')
       : (this._sel || '');
+    if (el) el.value = val;
     /* 选了时间，就把"用户主动清空过"的标记撤掉 */
     if (this._target === 'todoTime' && typeof Todo !== 'undefined') Todo._noAutoTime = false;
+    /* 有回调就交出去（日报选任意日期用），用完即焚 */
+    if (typeof this._cb === 'function'){ const cb = this._cb; this._cb = null; cb(val); }
     this.close();
   },
 
@@ -1969,6 +2254,7 @@ const App = {
     { id:'goal',     icon:'🎯', name:'年度', onShow: () => Goal.render()  },
     { id:'log',      icon:'📝', name:'日志', onShow: () => Log.render()   },
     { id:'recap',    icon:'📊', name:'复盘', onShow: () => Recap.render() },
+    { id:'report',   icon:'📰', name:'日报', onShow: () => Report.render() },
     { id:'docs',     icon:'📌', name:'文档', onShow: () => Docs.render()  },
     { id:'settings', icon:'⚙️', name:'设置', onShow: () => Settings.render() }
   ],
@@ -2036,6 +2322,7 @@ const Todo = {
     if (typeof Today !== 'undefined') Today.render();
     if (typeof Plan !== 'undefined') Plan.render();
     if (typeof Recap !== 'undefined') Recap.render();
+    if (typeof Report !== 'undefined' && Report.isActive()) Report.render();
   },
 
   /** 今天该做的：due 已到或已过期、且没完成 */
@@ -2767,6 +3054,7 @@ const Plan = {
     if (!was) Haptics.tick(16);
     this.render();
     if (typeof Today !== 'undefined') Today.render();
+    if (typeof Report !== 'undefined' && Report.isActive()) Report.render();
   },
 
   add(){
