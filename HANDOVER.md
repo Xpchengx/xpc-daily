@@ -23,7 +23,7 @@
 ## 文件
 
 ```
-index.html      全部界面 + 逻辑（约 3333 行，全内联 —— 原因见下方约束）
+index.html      全部界面 + 逻辑（约 3621 行，全内联 —— 原因见下方约束）
 manifest.json   PWA 配置（"添加到主屏幕"用）
 icon.png        桌面图标
 HANDOVER.md     本文件
@@ -34,7 +34,7 @@ HANDOVER.md     本文件
 ## 技术约束（改代码前必读）
 
 1. **所有代码内联在 `index.html`，不许拆文件。** 验收用的冒烟测试只加载 index.html，拆出去的文件它抓不到，等于测试白跑。
-2. **卡片折叠编号 `data-fold="cN"` 是写死的，新卡片只能用新编号，绝不许重排。** 用户的折叠状态按编号存在 Store 里，重排会让状态串到别的卡片。目前用到 c28（c28 = 连接到 Obsidian 卡片）。
+2. **卡片折叠编号 `data-fold="cN"` 是写死的，新卡片只能用新编号，绝不许重排。** 用户的折叠状态按编号存在 Store 里，重排会让状态串到别的卡片。目前用到 c33（c33 = 日报页「当日日志」卡片）。
 3. **不能在多个页面共用同一套渲染的地方用 `getElementById` 取值。** 同一条数据会同时出现在多个页面（一条待办会出现在「今天」页、「待办」页、计划日历里），id 会重复，`getElementById` 只返回第一个 —— 曾经因此丢掉用户写的备注。一律用 `btn.closest('.note-edit')` 这种从点击元素往上找的写法。
 4. **不许用 `setInterval` 轮询**（验收脚本会拦）。同步只在打开时和手动点击时拉取。
 5. **所有用户输入必须过 `Util.esc()`** 再拼进 HTML。
@@ -58,6 +58,7 @@ HANDOVER.md     本文件
 | `Today` | 「今天」页（含"已办"卡片） |
 | `Plan` | 计划：日历视图（默认）+ 列表视图；行程支持日期和责任人 |
 | `Recap` | 复盘：日报三个数 + 折线图 + 生成图卡 |
+| `Report` | **日报**：自动汇总某一天的任务/完成/备注（`data(date)`/`md(date)` 纯函数 + `render()`），复用 Todo/Plan/Log；按日期查看（翻页/选日期）+ 导出/复制 Markdown |
 | `Goal` / `Log` / `Docs` | 年度目标 / 工作日志 / 云文档入口 |
 | `Obsidian` | 连接到 Obsidian：导出 Daily Note Markdown（今日/全部）+ 每条待办用 `obsidian://new` 建笔记 |
 
@@ -76,7 +77,8 @@ HANDOVER.md     本文件
 7. **复盘页的数字是实时算的，不存快照** —— todo 有 `createdAt`/`doneAt`，任意一天都能算，改数据不会出现"日报和实际对不上"。
 8. **删除用软删除（墓碑）**：`softDelete` 留一条带 `_d` 标记的记录，否则另一台设备同步回来会把它复活。`list()` 过滤墓碑，`Store.get()` 底层保留。
 9. **待办行操作按钮折叠成 ⋯ 菜单（手机端关键修复，2026-09-15）**。原每行右侧并排 5 个按钮（👤💬✏️📨✕）+ 时间 + 勾选框，窄屏下把文字挤到约 15px 宽 → 中文一个字一行。现改为：默认只显示 `⋯` + 正文；点 `⋯` 展开浮层出 5 个操作；`Todo._menu` 存当前展开 id（同一时刻只开一个）；点子操作/点别处自动收起。新增 `t-fold.js` 守住该行为。若以后再改这里，**别把 5 个按钮又摊回行内**，否则手机端会复现变形。
-9. **连接到 Obsidian 是单向/按需，不是双向同步**（用户 2026-09-14 确认走 A+B）：A 批量导出=下载 .md 或复制文本（**浏览器不能直写硬盘**，用户手动放进 vault 的 Daily 文件夹）；B 单条发笔记= `obsidian://new?vault=&file=Xpc任务/标题&content=...` URI 调起 Obsidian 建笔记（需 Obsidian 已安装；仓库名存 `Store('obsVault')`，留空用默认仓库）。**没做** C 嵌活页面 / D 双向同数据源（风险高）。
+10. **连接到 Obsidian 是单向/按需，不是双向同步**（用户 2026-09-14 确认走 A+B）：A 批量导出=下载 .md 或复制文本（**浏览器不能直写硬盘**，用户手动放进 vault 的 Daily 文件夹）；B 单条发笔记= `obsidian://new?vault=&file=Xpc任务/标题&content=...` URI 调起 Obsidian 建笔记（需 Obsidian 已安装；仓库名存 `Store('obsVault')`，留空用默认仓库）。**没做** C 嵌活页面 / D 双向同数据源（风险高）。
+11. **日报（2026-09-20 新增）是"汇总视图"不是"新存储"。** 只新增 `Report` 模块 + 一个页面 + 折叠卡片 c29~c33，**完全不新增存储 key**——每天的数据仍来自既有的 todo/plan/log（它们本来就带 createdAt/doneAt/date 时间戳）。`Report.data(date)` 和 `Report.md(date)` 都是纯函数，从现有 Store 实时重算，不存快照，所以"日报内容和实际永远对得上"。导出 Markdown 复用 Picker 选日期 + 已有的下载/复制逻辑。Picker 为此加了 `_cb` 回调（选完日期把值交回 Report，用完即焚），**改 Picker 别删这个钩子**。日报页看某天时，Todo/Plan 的 refresh 链会 guard 调用 `Report.render()` 仅当日报页正打开。
 
 ## 开发流程
 
@@ -90,7 +92,7 @@ git tag -f live-baseline-$(date +%Y%m%d) HEAD
 python "~/.workbuddy/skills/bys-personal-dashboard/scripts/validate_dashboard.py" .
 
 # 2. 本项目自己的回归测试（在会话工作目录的 .workbuddy/ 下）
-#    t-edit.js / t-recap.js / t-start.js / t-obsidian.js / t-fold.js
+#    t-edit.js / t-recap.js / t-start.js / t-obsidian.js / t-fold.js / t-report.js
 #    ⚠️ 全部 EXIT=0 才算过；有红就先修，绝不在测试没全绿时推送
 NODE_PATH="~/.workbuddy/skills/bys-personal-dashboard/node_modules" node t-xxx.js <工程目录>
 
@@ -103,8 +105,9 @@ curl -s https://xpchengx.github.io/xpc-daily/ | grep -c "<这次新加的特征�
 
 **回滚**：任何时候线上出问题，立刻退回基线
 ```bash
-git push -f origin live-baseline-20260915:main   # 把基线硬推上 main
-# 或只在本机看旧版：git checkout live-baseline-20260915
+git push -f origin live-baseline-20260920:main   # 把基线（当前可用版本）硬推上 main
+# 仅撤销「日报」这一项、退回它之前：git push -f origin ed17e75:main
+# 只在本机看旧版：git checkout live-baseline-20260920
 ```
 基线 tag 列：`git tag -l "live-baseline-*"`。每个能用版本都打了 tag，不会丢失可回退点。
 
