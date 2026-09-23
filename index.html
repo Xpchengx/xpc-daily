@@ -242,6 +242,29 @@ select{appearance:none;-webkit-appearance:none}
 .tag.date{background:#22304a;color:#a5b8d4}
 .tag.date.past{opacity:.5}
 .tag.start{background:rgba(60,150,95,.20);color:#8fe0a8}
+/* ── 番茄钟 ── */
+.pomo{display:flex;flex-direction:column;align-items:center;gap:12px}
+.pomo-ring{position:relative;width:186px;height:186px}
+.pomo-ring svg{width:100%;height:100%;transform:rotate(-90deg);display:block}
+.pomo-ring .track{fill:none;stroke:var(--line);stroke-width:10}
+.pomo-ring .prog{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round;
+  transition:stroke-dashoffset .25s linear,stroke .25s}
+.pomo-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;pointer-events:none}
+.pomo-time{font-size:40px;font-weight:600;letter-spacing:1px;line-height:1;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--text)}
+.pomo-phase{font-size:12px;color:var(--text-dim);margin-top:6px}
+.pomo-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pomo-stat{font-size:12px;color:var(--text-dim);text-align:center;line-height:1.6}
+.pomo-in{width:100%;max-width:340px;font-size:16px;padding:8px 12px;border-radius:10px;
+  background:#0d1117;border:1px solid var(--line);color:var(--text);text-align:center}
+.pomo-set{width:100%;max-width:360px}
+.pomo-set summary{cursor:pointer;font-size:13px;color:var(--text-dim);list-style:none;text-align:center}
+.pomo-set summary::-webkit-details-marker{display:none}
+.pomo-set .row{margin-top:10px;justify-content:center}
+.pomo-set label{font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px}
+.pomo-num{width:62px;font-size:16px;padding:6px 8px;border-radius:8px;
+  background:#0d1117;border:1px solid var(--line);color:var(--text);text-align:center}
 /* ── 计划：日历视图 ── */
 .pseg{display:flex;gap:8px;margin-bottom:12px}
 .pseg .chip{padding:4px 14px}
@@ -493,6 +516,10 @@ select{appearance:none;-webkit-appearance:none}
       <div data-fold="c3" class="card wide" data-page-node-id="Jr3YvK3frdhCTAuooPwT2k">
         <h2 data-page-node-id="J6c0D4YAtoEJarWv3NWei8">📅 固定行程</h2>
         <div id="todayPlan" data-page-node-id="Xfc2GfLHLAd9KJAIokWhC3"></div>
+      </div>
+      <div data-fold="c34" class="card wide">
+        <h2>🍅 番茄钟</h2>
+        <div id="pomoBox"></div>
       </div>
     </section>
     <!-- ==== 功能：今日 END ==== -->
@@ -1718,7 +1745,11 @@ const Report = {
     const plans = Plan.all().filter(p => !p.date || p.date === date);
     const donePlanIds = Store.list('planDone:' + date).map(x => x.id);
     const log = Log.all().find(x => x.date === date);
-    return { date, onPlate, done, taskList, total, rate, plans, donePlanIds, log };
+    /* 番茄钟：这天完成的专注记录（按天存的数组） */
+    const pomo = Store.list('pomo:' + date);
+    const focusN = pomo.length;
+    const focusMin = pomo.reduce((a, x) => a + (x.min || 0), 0);
+    return { date, onPlate, done, taskList, total, rate, plans, donePlanIds, log, focusN, focusMin };
   },
 
   /** 一条待办 → Markdown 行（checkbox 反映完成态；含优先级/时间/责任人/开始日期/备注） */
@@ -1748,6 +1779,7 @@ const Report = {
     L.push('- 日期：' + date + ' 星期' + wd);
     L.push('- 任务总数：' + r.total);
     L.push('- 完成：' + r.done.length + '（完成率 ' + r.rate + '%）');
+    if (r.focusN) L.push('- 专注：' + r.focusN + ' 个番茄 · ' + r.focusMin + ' 分钟');
     L.push('');
     L.push('## 当日任务清单');
     L.push(r.taskList.length
@@ -1835,6 +1867,7 @@ const Report = {
         <div class="rbar"><i style="width:${r.rate}%"></i></div>
         <p class="hint" style="margin:10px 0 0">
           ${r.total ? `这天摊上 ${r.total} 件，做完 ${r.done.length} 件 · 完成率 ${r.rate}%` : '这天没有任务记录'}
+          ${r.focusN ? `<br>🍅 专注 ${r.focusN} 个番茄 · ${r.focusMin} 分钟` : ''}
           ${isToday ? '（今天还没过完，数字还会变）' : ''}
         </p>`;
     }
@@ -1900,6 +1933,269 @@ const Report = {
 /* ═══════════════════════════════════════════════════════════
    日报模块 END
    ═══════════════════════════════════════════════════════════ */
+
+
+/* ==== 功能：番茄钟 START ====
+   经典番茄工作法：专注 25 / 短休 5 / 每 4 个番茄后长休 15（时长可调）。
+   计时哲学：不用 setInterval（会烧额度、切后台也会累计误差），改用自调度的
+   setTimeout，并按"墙钟时间戳 endAt"算剩余 —— 息屏 / 切后台 / 刷新都不走偏。
+   存储：运行时状态存 `_pomo`（下划线开头 → 不参与云同步，只在本地）；
+   完成的专注记录按天存 `pomo:<日期>`（数组，可同步），供「日报」汇总。 */
+const Pomodoro = {
+  DEF: { focus:25, short:5, long:15, every:4 },
+  _timer: null,
+  _ac: null,
+
+  cfg(){
+    const c = Store.get('pomoCfg', null);
+    return Object.assign({}, this.DEF, (c && typeof c === 'object') ? c : {});
+  },
+  setCfg(patch){
+    const c = Object.assign(this.cfg(), patch);
+    /* 夹取规则：空/非数字 → 用默认；0/负数 → 夹到下限；超上限 → 夹到上限 */
+    const clamp = (v, def, lo, hi) => {
+      const n = Math.round(Number(v));
+      if (!Number.isFinite(n)) return def;
+      return Math.min(hi, Math.max(lo, n));
+    };
+    c.focus = clamp(c.focus, this.DEF.focus, 1, 90);
+    c.short = clamp(c.short, this.DEF.short, 1, 60);
+    c.long  = clamp(c.long,  this.DEF.long,  1, 120);
+    c.every = clamp(c.every, this.DEF.every, 2, 12);
+    Store.set('pomoCfg', c);
+    this.render();
+  },
+
+  st(){
+    const s = Store.get('_pomo', null);
+    return Object.assign({ phase:'focus', run:false, endAt:0, left:0, round:0, label:'' },
+      (s && typeof s === 'object') ? s : {});
+  },
+  _save(s){ Store.set('_pomo', s); },
+
+  dur(p){
+    const c = this.cfg();
+    return (p === 'short' ? c.short : p === 'long' ? c.long : c.focus) * 60000;
+  },
+  phaseName(p){ return p === 'short' ? '短休' : p === 'long' ? '长休' : '专注'; },
+  phaseColor(p){ return p === 'short' ? '#3fb950' : p === 'long' ? '#d29922' : '#58a6ff'; },
+
+  /** 剩余毫秒：运行中按墙钟算，否则用存下的 left */
+  remain(){
+    const s = this.st();
+    if (s.run) return Math.max(0, s.endAt - Date.now());
+    return s.left > 0 ? s.left : this.dur(s.phase);
+  },
+
+  /* ── 控制 ── */
+  start(){
+    const s = this.st();
+    if (s.run){ return this.pause(); }               // 再点一下 = 暂停
+    const left = s.left > 0 ? s.left : this.dur(s.phase);
+    s.run = true; s.endAt = Date.now() + left; s.left = left;
+    this._save(s);
+    this._audio();                                   // 在用户手势里解锁声音
+    Haptics.tick(12);
+    this._loop();
+  },
+  pause(){
+    const s = this.st();
+    if (!s.run) return;
+    s.left = Math.max(0, s.endAt - Date.now());
+    s.run = false;
+    this._save(s); this._stop();
+    Haptics.tick(10);
+    this.render();
+  },
+  reset(){
+    const s = this.st();
+    s.run = false; s.endAt = 0; s.left = 0;
+    this._save(s); this._stop();
+    Haptics.tick(10);
+    this.render();
+  },
+  skip(){ this._advance(true); },                    // 跳过：不计入统计
+
+  setPhase(p){
+    if (this.st().run) return;                       // 运行中不许换阶段
+    const s = this.st();
+    s.phase = p; s.left = 0; s.endAt = 0;
+    this._save(s);
+    Haptics.tick(10);
+    this.render();
+  },
+  setLabel(v){
+    const s = this.st();
+    s.label = String(v || '').slice(0, 60);
+    this._save(s);
+  },
+
+  /* ── 计时循环：自调度 setTimeout，跑完即停 ── */
+  _loop(){
+    this._stop();
+    const step = () => {
+      const s = this.st();
+      if (!s.run) return;
+      if (Date.now() >= s.endAt){ this._finish(); return; }
+      this._paint();
+      this._timer = setTimeout(step, 250);
+    };
+    this._timer = setTimeout(step, 250);
+    this._paint();
+  },
+  _stop(){ if (this._timer){ clearTimeout(this._timer); this._timer = null; } },
+
+  /** 一个阶段跑完了 */
+  _finish(){
+    const s = this.st();
+    const wasFocus = s.phase === 'focus';
+    if (wasFocus){                                   // 只有「专注」计入统计
+      Store.upsert('pomo:' + Util.today(), {
+        id: Util.uid(), at: Date.now(),
+        min: Math.round(this.dur('focus') / 60000),
+        label: (s.label || '').trim()
+      });
+    }
+    this._notify(wasFocus);
+    this._advance(false);
+  },
+
+  /** 推进到下一阶段。skipped=true（手动跳过）不计统计、不庆祝 */
+  _advance(skipped){
+    const s = this.st(), c = this.cfg();
+    let round = s.round, next;
+    if (s.phase === 'focus'){
+      if (!skipped) round = s.round + 1;
+      next = (round >= c.every) ? 'long' : 'short';
+    } else {
+      next = 'focus';
+      if (s.phase === 'long') round = 0;             // 长休结束 → 新一轮
+    }
+    s.run = false; s.endAt = 0; s.left = 0; s.phase = next; s.round = round;
+    this._save(s);
+    this._stop();
+    this.render();
+    if (typeof Today !== 'undefined' && Today.render) Today.render();
+  },
+
+  _notify(wasFocus){
+    Haptics.tick(wasFocus ? 220 : 120);
+    this._beep(wasFocus ? 880 : 620);
+    UI.toast(wasFocus ? '专注结束，起来歇会儿 🍅' : '休息结束，接着来');
+  },
+
+  /* ── 提示音：Web Audio 现场合成，不引外部文件 ── */
+  _audio(){
+    if (this._ac) return this._ac;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this._ac = new AC();
+    } catch(e){ this._ac = null; }
+    return this._ac;
+  },
+  _beep(freq){
+    const ac = this._audio();
+    if (!ac) return;
+    try {
+      if (ac.state === 'suspended') ac.resume();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = 'sine'; o.frequency.value = freq || 880;
+      const t = ac.currentTime;
+      g.gain.setValueAtTime(0.0008, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 0.55);
+      o.start(t); o.stop(t + 0.58);
+    } catch(e){ /* 不支持就算了 */ }
+  },
+
+  /* ── 只改倒计时文本/描边，不重建 DOM（每 250ms 调一次，要轻） ── */
+  _paint(){
+    const box = document.getElementById('pomoBox');
+    if (!box) return;
+    const s = this.st(), rem = this.remain(), total = this.dur(s.phase);
+    const sec = Math.max(0, Math.ceil(rem / 1000));
+    const txt = document.getElementById('pomoTime');
+    if (txt) txt.textContent =
+      String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+    const ring = box.querySelector('.prog');
+    if (ring){
+      const C = 2 * Math.PI * 88;
+      ring.setAttribute('stroke-dashoffset', (C * (1 - (total ? rem / total : 0))).toFixed(1));
+    }
+  },
+
+  /** 回到前台 / 重新打开：还在跑就续上循环，否则画一次 */
+  resume(){
+    if (this.st().run) this._loop();
+    else this.render();
+  },
+
+  render(){
+    const box = document.getElementById('pomoBox');
+    if (!box) return;
+    const s = this.st();
+    /* 离开期间已经到点了 → 补记一笔并推进 */
+    if (s.run && Date.now() >= s.endAt){ this._finish(); return; }
+
+    const c = this.cfg(), total = this.dur(s.phase), rem = this.remain();
+    const sec = Math.max(0, Math.ceil(rem / 1000));
+    const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+    const ss = String(sec % 60).padStart(2, '0');
+    const C = 2 * Math.PI * 88;
+    const off = C * (1 - (total ? rem / total : 0));
+    const paused = !s.run && rem < total;
+    const sessions = Store.list('pomo:' + Util.today());
+    const mins = sessions.reduce((a, x) => a + (x.min || 0), 0);
+    const nth = s.phase === 'focus' ? s.round + 1 : s.round;
+
+    box.innerHTML = `
+      <div class="pomo">
+        <div class="pomo-ring">
+          <svg viewBox="0 0 200 200" role="img" aria-label="番茄钟进度">
+            <circle class="track" cx="100" cy="100" r="88"></circle>
+            <circle class="prog" cx="100" cy="100" r="88" stroke="${this.phaseColor(s.phase)}"
+              stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"></circle>
+          </svg>
+          <div class="pomo-mid">
+            <div class="pomo-time" id="pomoTime">${mm}:${ss}</div>
+            <div class="pomo-phase">${this.phaseName(s.phase)}${s.run ? ' · 进行中' : paused ? ' · 已暂停' : ''}</div>
+          </div>
+        </div>
+        <div class="pomo-row">
+          ${['focus','short','long'].map(p =>
+            `<button class="chip ${s.phase === p ? 'on' : ''}"
+               onclick="Pomodoro.setPhase('${p}')">${this.phaseName(p)} ${Math.round(this.dur(p) / 60000)}′</button>`
+          ).join('')}
+        </div>
+        <div class="pomo-row">
+          <button class="btn" onclick="Pomodoro.start()">${s.run ? '⏸ 暂停' : '▶ 开始'}</button>
+          <button class="btn ghost" onclick="Pomodoro.reset()">↺ 重置</button>
+          <button class="btn ghost" onclick="Pomodoro.skip()">⏭ 跳过</button>
+        </div>
+        <input class="pomo-in" id="pomoLabel" placeholder="这轮做什么？（可留空）"
+               value="${Util.esc(s.label || '')}" onchange="Pomodoro.setLabel(this.value)">
+        <div class="pomo-stat">
+          本轮第 ${Math.max(1, nth)} 个 · 每 ${c.every} 个番茄长休一次<br>
+          今天已完成 <b>${sessions.length}</b> 个番茄 · <b>${mins}</b> 分钟
+        </div>
+        <details class="pomo-set">
+          <summary>⚙️ 调整时长（分钟）</summary>
+          <div class="row">
+            <label>专注<input class="pomo-num" type="number" min="1" max="90" value="${c.focus}"
+              onchange="Pomodoro.setCfg({focus:this.value})"></label>
+            <label>短休<input class="pomo-num" type="number" min="1" max="60" value="${c.short}"
+              onchange="Pomodoro.setCfg({short:this.value})"></label>
+            <label>长休<input class="pomo-num" type="number" min="1" max="120" value="${c.long}"
+              onchange="Pomodoro.setCfg({long:this.value})"></label>
+            <label>每<input class="pomo-num" type="number" min="2" max="12" value="${c.every}"
+              onchange="Pomodoro.setCfg({every:this.value})">个长休</label>
+          </div>
+        </details>
+      </div>`;
+  }
+};
+/* ==== 功能：番茄钟 END ==== */
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -2284,6 +2580,14 @@ const App = {
 
     this.checkBackup();
     GistSync.init();
+
+    /* 番茄钟：回到前台 / 重新打开时续上计时（剩余时间按墙钟算，切后台不会走偏） */
+    if (typeof Pomodoro !== 'undefined'){
+      Pomodoro.resume();
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) Pomodoro.resume();
+      });
+    }
   },
 
   refresh(){
@@ -3007,6 +3311,8 @@ const Today = {
     document.getElementById('todayPlan').innerHTML = plan.length
       ? plan.map(p => Plan.row(p, doneIds.includes(p.id))).join('')
       : '<div class="empty">还没设置固定行程，去「计划」加几项</div>';
+
+    if (typeof Pomodoro !== 'undefined') Pomodoro.render();
   },
 
   dueSorted(){
