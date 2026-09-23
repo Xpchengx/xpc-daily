@@ -386,11 +386,6 @@ select{appearance:none;-webkit-appearance:none}
 .tag.now{background:var(--accent);color:#0d1117}
 .tag.span{background:rgba(160,170,185,.14);color:var(--text-dim)}
 
-/* 进度条 */
-.bar{height:8px;background:rgba(160,170,185,.18);border-radius:4px;overflow:hidden;margin:12px 0 6px}
-.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
-.stat{display:flex;justify-content:space-between;font-size:var(--fs-meta);color:var(--text-dim)}
-
 /* 云文档入口 */
 .doc{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line)}
 .doc:last-child{border-bottom:none}
@@ -517,10 +512,6 @@ select{appearance:none;-webkit-appearance:none}
         <h2 data-page-node-id="J6c0D4YAtoEJarWv3NWei8">📅 固定行程</h2>
         <div id="todayPlan" data-page-node-id="Xfc2GfLHLAd9KJAIokWhC3"></div>
       </div>
-      <div data-fold="c34" class="card wide">
-        <h2>🍅 番茄钟</h2>
-        <div id="pomoBox"></div>
-      </div>
     </section>
     <!-- ==== 功能：今日 END ==== -->
 
@@ -611,45 +602,18 @@ select{appearance:none;-webkit-appearance:none}
     </section>
     <!-- ==== 功能：计划 END ==== -->
 
-    <!-- ==== 功能：年度 START ==== -->
-    <section class="page" id="page-goal" data-page-node-id="Vwuh22gIz9KimrxyflM6Fr">
-      <div class="page-title" data-page-node-id="rETggqJx1CG4A9b1MhEQRM">年度目标</div>
-      <div class="page-sub" id="goalSub" data-page-node-id="UqQRGfD1xVRl8BsXTyNzCx"></div>
-      <div data-fold="c10" class="card wide" data-page-node-id="luuvZwAiOyFPCCFrphViEs">
-        <div class="hero" id="goalDays" data-page-node-id="NpAwMsjQESLYapjtOVbsEW">0<span class="unit" data-page-node-id="XJ7lCuWTKQgEc8JL5fbf6L">天</span></div>
-        <p class="hint" data-page-node-id="bWHKvJLNnTxHMkkyMNXMnW">距今年结束</p>
-        <div class="bar" data-page-node-id="ldx4IYmfqBT8vV6VVjVKTh"><i id="goalBar" style="width:0%" data-page-node-id="IBtT6rs8CkQpBILfzSVeKC"></i></div>
-        <div class="stat" data-page-node-id="mNowfLKhw6j2smOcGJTmDN"><span id="goalPct" data-page-node-id="E6Jij7oQhir4UPCgDuay0F"></span><span id="goalCnt" data-page-node-id="xQjsWxaEK1Lixc4R5CLmLs"></span></div>
-      </div>
-      <div data-fold="c11" class="card wide" data-page-node-id="hLvCA7xAy9nUNFPDHatoYW">
-        <h2 data-page-node-id="QkPR0fWAT76wEZZMySTnvf">🎯 今年的目标</h2>
-        <div class="row" data-page-node-id="ow66lOmBpA0QGZfhTEg2Yk">
-          <input type="text" id="goalText" placeholder="比如：拿下 A 客户" data-page-node-id="xAOjAzhOzKm7wae8acCZo6">
-          <button class="btn" onclick="Goal.add()" data-page-node-id="YfW95lmJulkU8yZgMZtcds">添加</button>
-        </div>
-        <div id="goalList" style="margin-top:12px" data-page-node-id="AC3LVL2bENeJ8GUHUHLF1M"></div>
+    <!-- ==== 功能：番茄钟 START ====
+       专注 / 短休 / 长休三段循环。2026-09-23 从「今天」页移到侧边栏独立入口。
+       折叠卡片沿用 c34（折叠状态按编号存，编号不变，用户既有的收起状态继续有效）。 -->
+    <section class="page" id="page-pomo">
+      <div class="page-title">番茄钟</div>
+      <div class="page-sub">专注一段，休息一下</div>
+      <div data-fold="c34" class="card wide">
+        <h2>🍅 番茄钟</h2>
+        <div id="pomoBox"></div>
       </div>
     </section>
-    <!-- ==== 功能：年度 END ==== -->
-
-    <!-- ==== 功能：日志 START ==== -->
-    <section class="page" id="page-log" data-page-node-id="9pOx5ZFHVagzOR6cTbUTBZ">
-      <div class="page-title" data-page-node-id="8wOuJZKoIgyjiW4xYONjPV">工作日志</div>
-      <div class="page-sub" id="logSub" data-page-node-id="OujxIRvOtzy38Otfxch0NA"></div>
-      <div data-fold="c12" class="card wide" data-page-node-id="pD4RGXQCAXiecln3f7z8me">
-        <h2 data-page-node-id="QOlWG6XUx0uaKUt5vZ7Kxc">📝 <span id="logDate" data-page-node-id="CL0jc3CtQMUezF9FwKHUYj"></span>
-          <button class="btn ghost" id="logSyncMini" style="float:right;font-size:12px;padding:4px 10px;margin:0"
-                  onclick="Settings.toggleLogSync()" data-page-node-id="2epSKVYbi71fK9lPJ7pjNQ"></button>
-        </h2>
-        <textarea id="logText" placeholder="今天做了什么、卡在哪、明天先干什么" oninput="Log.later()"></textarea>
-        <p class="hint" id="logHint" data-page-node-id="XUQVUgCK4ETm3WX8iigfgB"></p>
-      </div>
-      <div data-fold="c13" class="card wide" data-page-node-id="uSWSWjQMRCZWQ1OeDd5lMN">
-        <h2 data-page-node-id="P58eYpj9rS0o4zmQYSW4kL">📚 往日</h2>
-        <div id="logList" data-page-node-id="T6E3XGYzB0333u968hRqk2"></div>
-      </div>
-    </section>
-    <!-- ==== 功能：日志 END ==== -->
+    <!-- ==== 功能：番茄钟 END ==== -->
 
     <!-- ==== 功能：文档 START ==== -->
     <section class="page" id="page-docs" data-page-node-id="8uDqSjIs5i2PiDzO1ClZuD">
@@ -749,11 +713,6 @@ select{appearance:none;-webkit-appearance:none}
         <h2>📅 固定行程</h2>
         <div id="repPlans"></div>
       </div>
-
-      <div data-fold="c33" class="card wide">
-        <h2>📝 当日日志 / 备注</h2>
-        <div id="repLog"></div>
-      </div>
     </section>
     <!-- ==== 功能：日报 END ==== -->
 
@@ -812,23 +771,7 @@ select{appearance:none;-webkit-appearance:none}
       </div>
       <!-- ==== 云端同步卡片 END ==== -->
 
-      <!-- ==== 日志同步开关 START ==== -->
-      <div data-fold="c19" class="card wide" id="logSyncCard" data-page-node-id="ROOTkJIUS4TXucdP2ogyHH">
-        <h2 data-page-node-id="OxL3uN1vHSEb58c3uvaMBJ">📝 工作日志同步</h2>
-        <p class="hint" style="margin-top:0" data-page-node-id="0p2LAl53GDoWF4nBzDk9oE">
-          日志默认<b data-page-node-id="0w5HWAEC61hULDxOKj3pdZ">只留这台设备</b>——它经常夹带不想上云的内容。<br data-page-node-id="xyGZyOtXdQwjBIGscaBqm5">
-          打开之后，日志会和待办一起存进你的私有 Gist，手机电脑都能看。
-        </p>
-        <div class="row" style="margin-top:14px" data-page-node-id="rkdtPx0kATQAGpmurjeWdB">
-          <button class="btn" id="logSyncBtn" onclick="Settings.toggleLogSync()" data-page-node-id="ZJzQNDzrw05Rrfjgcif51c"></button>
-          <span class="hint" id="logSyncInfo" style="margin:0" data-page-node-id="4eEa5yQRPa5DcLwZ3EbS17"></span>
-        </div>
-        <p class="hint" data-page-node-id="BrLORXrc3XMGT8j6dobD9f">
-          改这个只影响以后的同步，已经写过的内容一条都不会丢。<br data-page-node-id="my9QM5LKgoc0Ylxkt6ib95">
-          建议两端设成一样：一端开一端关的话，关的那端推送时会把云端的日志覆盖掉。
-        </p>
-      </div>
-      <!-- ==== 日志同步开关 END ==== -->
+      <!-- ==== 日志同步开关（2026-09-23 随「工作日志」功能一并移除） ==== -->
 
       <!-- ==== 震动反馈开关 START ==== -->
       <div data-fold="c20" class="card wide" id="hapticCard">
@@ -1701,7 +1644,7 @@ const Recap = {
    · md(date)    纯函数：data → Markdown 文本（导出 / 复制复用同一份）。
    · render()    把 data 画到页面，与数据解耦，以后想加「持久化日报」
                  只要再写一层 save/load，data() 不动。
-   · 复用 Todo / Plan / Log / Picker，不重复造轮子。
+   · 复用 Todo / Plan / Pomodoro / Picker，不重复造轮子。
    ═══════════════════════════════════════════════════════════ */
 const Report = {
   _d: '',                                   // 正在看哪一天（空 = 今天）
@@ -1744,12 +1687,11 @@ const Report = {
     const rate = total ? Math.round(done.length / total * 100) : 0;
     const plans = Plan.all().filter(p => !p.date || p.date === date);
     const donePlanIds = Store.list('planDone:' + date).map(x => x.id);
-    const log = Log.all().find(x => x.date === date);
     /* 番茄钟：这天完成的专注记录（按天存的数组） */
     const pomo = Store.list('pomo:' + date);
     const focusN = pomo.length;
     const focusMin = pomo.reduce((a, x) => a + (x.min || 0), 0);
-    return { date, onPlate, done, taskList, total, rate, plans, donePlanIds, log, focusN, focusMin };
+    return { date, onPlate, done, taskList, total, rate, plans, donePlanIds, focusN, focusMin };
   },
 
   /** 一条待办 → Markdown 行（checkbox 反映完成态；含优先级/时间/责任人/开始日期/备注） */
@@ -1807,13 +1749,6 @@ const Report = {
         L.push('- ' + (d2 ? '[x] ' : '[ ] ') + (p.time ? p.time + ' ' : '') + p.text
                + (p.owner ? ' 👤' + p.owner : '') + ' ' + when);
       });
-    } else {
-      L.push('（无）');
-    }
-    L.push('');
-    L.push('## 当日日志');
-    if (r.log && r.log.text && r.log.text.trim()){
-      L.push(r.log.text.trim().split('\n').map(l => '> ' + l).join('\n'));
     } else {
       L.push('（无）');
     }
@@ -1919,14 +1854,6 @@ const Report = {
             </div>`;
           }).join('')
         : '<div class="empty">这天没有固定行程</div>';
-    }
-
-    /* 当日日志 / 备注 */
-    const lBox = document.getElementById('repLog');
-    if (lBox){
-      lBox.innerHTML = (r.log && r.log.text && r.log.text.trim())
-        ? `<div class="item"><span class="grow" style="white-space:pre-wrap">${Util.esc(r.log.text)}</span></div>`
-        : '<div class="empty">这天没有写日志</div>';
     }
   }
 };
@@ -2205,7 +2132,6 @@ const Settings = {
   render(){
     this.refreshBackupInfo();
     this.renderGist();
-    this.renderLogSync();
     this.renderHaptic();
     const ov = document.getElementById('obsVault');
     if (ov) ov.value = Store.get('obsVault') || '';
@@ -2239,30 +2165,6 @@ const Settings = {
     if (info) info.textContent = navigator.vibrate
       ? '这台设备支持，滚轮每过一格会震一下'
       : (/iP(hone|ad|od)/.test(navigator.userAgent || '') ? 'iPhone 上可能无效，试试就知道' : '这台设备好像不支持震动');
-  },
-
-  /* ── 工作日志要不要跟着上云 ── */
-  logSyncOn(){ return Store.get('logSync') === '1'; },
-
-  toggleLogSync(){
-    const on = !this.logSyncOn();
-    Store.set('logSync', on ? '1' : '0');
-    UI.toast(on ? '工作日志以后会同步到云端' : '工作日志改回只留本地');
-    this.renderLogSync();
-    Log.renderHint();
-    if (GistSync.on()) GistSync.push();   // 立刻推一次，把日志带上/撤下
-  },
-
-  renderLogSync(){
-    const btn = document.getElementById('logSyncBtn');
-    if (!btn) return;
-    const on = this.logSyncOn();
-    btn.textContent = on ? '☁️ 已开启 · 同步到云端' : '📱 仅本地 · 不同步';
-    btn.classList.toggle('ghost', !on);
-    const info = document.getElementById('logSyncInfo');
-    if (info) info.textContent = GistSync.on()
-      ? (on ? '私有 Gist 里也会有一份' : '云端没有日志，只进备份文件')
-      : '还没开双端同步，开了这项才生效';
   },
 
   renderGist(){
@@ -2525,7 +2427,7 @@ const Fold = {
     document.addEventListener('click', e => {
       const t = e.target;
       if (!t || !t.closest) return;
-      /* h2 里可能有按钮（比如日志页的同步开关）：点按钮只干它自己的活，别顺手折叠 */
+      /* h2 里可能有按钮（比如复盘页的日期翻页）：点按钮只干它自己的活，别顺手折叠 */
       if (t.closest('button, a, input, textarea, select, .fold-keep')) return;
       const h = t.closest('h2');
       if (!h) return;
@@ -2547,8 +2449,7 @@ const App = {
     { id:'today',    icon:'⏰', name:'今天', onShow: () => Today.render() },
     { id:'todo',     icon:'✅', name:'待办', onShow: () => Todo.render()  },
     { id:'plan',     icon:'📅', name:'计划', onShow: () => Plan.render()  },
-    { id:'goal',     icon:'🎯', name:'年度', onShow: () => Goal.render()  },
-    { id:'log',      icon:'📝', name:'日志', onShow: () => Log.render()   },
+    { id:'pomo',     icon:'🍅', name:'番茄', onShow: () => Pomodoro.render() },
     { id:'recap',    icon:'📊', name:'复盘', onShow: () => Recap.render() },
     { id:'report',   icon:'📰', name:'日报', onShow: () => Report.render() },
     { id:'docs',     icon:'📌', name:'文档', onShow: () => Docs.render()  },
@@ -3311,8 +3212,6 @@ const Today = {
     document.getElementById('todayPlan').innerHTML = plan.length
       ? plan.map(p => Plan.row(p, doneIds.includes(p.id))).join('')
       : '<div class="empty">还没设置固定行程，去「计划」加几项</div>';
-
-    if (typeof Pomodoro !== 'undefined') Pomodoro.render();
   },
 
   dueSorted(){
@@ -3649,110 +3548,12 @@ const Plan = {
 /* ==== 功能：计划 END ==== */
 
 
-/* ==== 功能：年度 START ==== */
-const Goal = {
-  all(){ return Store.list('goal', (a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0)); },
-
-  add(){
-    const el = document.getElementById('goalText');
-    const text = (el.value || '').trim();
-    if (!text) return;
-    Store.upsert('goal', { text, done: false, createdAt: Date.now() });
-    el.value = '';
-    this.render();
-  },
-
-  toggle(id){
-    const it = this.all().find(x => x.id === id);
-    if (!it) return;
-    Store.upsert('goal', { id, done: !it.done });
-    this.render();
-  },
-
-  del(id){
-    if (!confirm('删掉这个目标？')) return;
-    Store.softDelete('goal', id);
-    this.render();
-  },
-
-  render(){
-    const now = new Date(), y = now.getFullYear();
-    const start = new Date(y, 0, 1);
-    const end   = new Date(y, 11, 31, 23, 59, 59);
-    const left  = Math.max(0, Math.ceil((end - now) / 864e5));
-    const pct   = Math.min(100, Math.max(0, Math.round((now - start) / (end - start) * 100)));
-
-    document.getElementById('goalDays').innerHTML = `${left}<span class="unit">天</span>`;
-    document.getElementById('goalBar').style.width = pct + '%';
-    document.getElementById('goalPct').textContent = `${y} 年已过 ${pct}%`;
-
-    const all = this.all(), dn = all.filter(x => x.done).length;
-    document.getElementById('goalCnt').textContent =
-      all.length ? `目标完成 ${dn} / ${all.length}` : '还没定目标';
-    document.getElementById('goalSub').textContent = `${y} 年 · 定几件今年一定要做成的事`;
-
-    document.getElementById('goalList').innerHTML = all.length
-      ? all.map(g => `<div class="item ${g.done ? 'done' : ''}">
-          <span class="box" onclick="Goal.toggle('${g.id}')">${g.done ? '✓' : ''}</span>
-          <span class="grow">${Util.esc(g.text)}</span>
-          <button class="del" onclick="Goal.del('${g.id}')">✕</button>
-        </div>`).join('')
-      : '<div class="empty">今年还没有目标</div>';
-  }
-};
-/* ==== 功能：年度 END ==== */
+/* （原「年度目标」功能已于 2026-09-23 按用户要求整体移除；
+    仅为让旧数据可恢复，存储在 Store('goal') 里的记录未主动删除。） */
 
 
-/* ==== 功能：日志 START ====
-   默认只留本地，不参与云端同步（见 Store.NO_SYNC）；
-   设置页 / 本页右上角的开关可以打开，打开后日志跟待办一起上云。
-   无论开关怎么设，备份文件始终会带上日志。 */
-const Log = {
-  all(){ return Store.list('log', (a, b) => String(b.date || '').localeCompare(String(a.date || ''))); },
-  today(){ return this.all().find(x => x.date === Util.today()); },
-
-  /** 顶部那行状态说明，开关切换时也要跟着变 */
-  renderHint(){
-    const on = Settings.logSyncOn();
-    const sub = document.getElementById('logSub');
-    const hint = document.getElementById('logHint');
-    const mini = document.getElementById('logSyncMini');
-    if (sub)  sub.textContent  = on ? '会同步到云端，两台设备都能看' : '只存在这台设备，不同步上云';
-    if (mini) mini.textContent = on ? '☁️ 同步中' : '📱 仅本地';
-    if (hint) hint.innerHTML = on
-      ? '边写边存，不用点保存。这些内容<b>会</b>同步到你的私有 Gist —— 别在这里写不想上云的东西。'
-      : '边写边存，不用点保存。这些内容<b>不会</b>同步到云端，只在备份文件里。想两端都看就点右上角开关。';
-  },
-
-  later(){ clearTimeout(this._t); this._t = setTimeout(() => this.save(), 700); },
-
-  save(){
-    const el = document.getElementById('logText');
-    if (!el) return;
-    const cur = this.today();
-    const v = el.value;
-    if (cur) Store.upsert('log', { id: cur.id, date: Util.today(), text: v });
-    else Store.upsert('log', { date: Util.today(), text: v });
-    const d = new Date();
-    document.getElementById('logDate').textContent =
-      Util.today() + ' · 已保存 ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-  },
-
-  render(){
-    this.renderHint();
-    document.getElementById('logDate').textContent = Util.today();
-    const cur = this.today();
-    document.getElementById('logText').value = cur ? (cur.text || '') : '';
-
-    const others = this.all().filter(x => x.date !== Util.today()).slice(0, 30);
-    document.getElementById('logList').innerHTML = others.length
-      ? others.map(x => `<div class="item"><span class="grow" style="white-space:pre-wrap">
-          <span style="color:var(--text-dim);font-size:13px">${Util.esc(x.date)}</span><br>${Util.esc(x.text)}
-        </span></div>`).join('')
-      : '<div class="empty">还没有往日记录</div>';
-  }
-};
-/* ==== 功能：日志 END ==== */
+/* （原「工作日志」功能已于 2026-09-23 按用户要求整体移除；
+    「日志同步」开关随之取消，存储在 Store('log') 里的旧记录未主动删除。） */
 
 /* ==== 功能：连接到 Obsidian START ====
    两条路（用户选了 A+B）：
@@ -3783,12 +3584,6 @@ const Obsidian = {
     return `- ${t}${p.text}${owner} ${when}`;
   },
 
-  _logBlock(date){
-    const it = Log.all().find(x => x.date === date);
-    if (!it || !it.text || !it.text.trim()) return '';
-    return '## 工作日志\n' + it.text.trim().split('\n').map(l => '> ' + l).join('\n') + '\n';
-  },
-
   /* 今日 Daily Note */
   todayMd(){
     const t = Util.today();
@@ -3799,8 +3594,7 @@ const Obsidian = {
     md += (todos.length ? todos.map(x => this._todoLine(x)).join('\n') : '（无）') + '\n\n';
     md += '## 计划（固定行程）\n';
     const plans = Plan.forToday();
-    md += (plans.length ? plans.map(p => this._planLine(p)).join('\n') : '（无）') + '\n\n';
-    md += this._logBlock(t);
+    md += (plans.length ? plans.map(p => this._planLine(p)).join('\n') : '（无）') + '\n';
     return md;
   },
 
